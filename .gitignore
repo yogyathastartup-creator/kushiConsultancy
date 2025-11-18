@@ -45,3 +45,6 @@ Thumbs.db
 # Server environment
 /server/.env
 /server/node_modules/
+
+# Ignore server logs directory
+server/logs/
