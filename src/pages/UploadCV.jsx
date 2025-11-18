@@ -4,6 +4,7 @@ import { validateFile, validateEmail, validatePhone, validateTextInput, sanitize
 import '../styles/UploadCV.css';
 
 const UploadCV = () => {
+    const contactEmail = import.meta.env.VITE_CONTACT_EMAIL || 'yogyatha.startup@gmail.com';
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -46,6 +47,19 @@ const UploadCV = () => {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location.search, cvUploadEnabled]);
+
+    // Load reCAPTCHA script dynamically if site key configured
+    React.useEffect(() => {
+        const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+        if (!siteKey) return;
+        if (window.grecaptcha) return; // already loaded
+        const script = document.createElement('script');
+        script.src = `https://www.google.com/recaptcha/api.js?render=${siteKey}`;
+        script.async = true;
+        script.defer = true;
+        document.body.appendChild(script);
+        return () => { document.body.removeChild(script); };
+    }, []);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -127,38 +141,54 @@ const UploadCV = () => {
         setSuccess(false);
 
         try {
-            const formDataToSend = new FormData();
-            formDataToSend.append('cv', file);
-            formDataToSend.append('name', formData.name);
-            formDataToSend.append('email', formData.email);
-            formDataToSend.append('phone', formData.phone);
-            formDataToSend.append('position', formData.position);
-            formDataToSend.append('experience', formData.experience);
-            formDataToSend.append('location', formData.location);
-
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/upload/cv`, {
+            const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+            let recaptchaToken = null;
+            if (siteKey && window.grecaptcha) {
+                try {
+                    recaptchaToken = await window.grecaptcha.execute(siteKey, { action: 'submit' });
+                } catch (e) {
+                    console.warn('reCAPTCHA execution failed', e);
+                }
+            }
+            // Presigned S3 upload flow
+            const apiBase = import.meta.env.VITE_API_URL || '';
+            // 1) request presign
+            const presignResp = await fetch(`${apiBase}/presign`, {
                 method: 'POST',
-                body: formDataToSend
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: file.name, contentType: file.type })
             });
+            const presignData = await presignResp.json();
+            if (!presignResp.ok || !presignData.ok) throw new Error('Failed to get presign URL');
 
-            const data = await response.json();
+            // 2) upload directly to S3
+            const uploadUrl = presignData.url;
+            const putResp = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
+            if (!putResp.ok) throw new Error('Failed to upload to storage');
 
-            if (response.ok && data.success) {
+            // 3) notify backend (save metadata)
+            const completeResp = await fetch(`${apiBase}/uploadComplete`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    key: presignData.key,
+                    originalName: file.name,
+                    name: formData.name,
+                    email: formData.email,
+                    phone: formData.phone,
+                    position: formData.position,
+                    experience: formData.experience,
+                    location: formData.location
+                })
+            });
+            const completeData = await completeResp.json();
+            if (completeResp.ok && completeData.ok) {
                 setSuccess(true);
-                // Reset form
-                setFormData({
-                    name: '',
-                    email: '',
-                    phone: '',
-                    position: '',
-                    experience: '',
-                    location: ''
-                });
+                setFormData({ name: '', email: '', phone: '', position: '', experience: '', location: '' });
                 setFile(null);
-                // Reset file input
                 document.getElementById('cv-file-input').value = '';
             } else {
-                setErrors({ submit: data.message || 'Upload failed. Please try again.' });
+                setErrors({ submit: completeData.error || 'Upload failed at finalization step.' });
             }
         } catch (error) {
             console.error('Upload error:', error);
@@ -347,7 +377,7 @@ const UploadCV = () => {
                             <span className="step-number">2</span>
                             <div className="step-content">
                                 <h4>Compose Your Email</h4>
-                                <p>Send your resume to: <strong>yogyatha.startup@gmail.com</strong></p>
+                                <p>Send your resume to: <strong>{contactEmail}</strong></p>
                             </div>
                         </div>
 
@@ -369,7 +399,7 @@ const UploadCV = () => {
 
                     <div className="email-button-section">
                         <a 
-                            href="mailto:yogyatha.startup@gmail.com?subject=Job Application - Resume Submission&body=Dear Kushi Consultancy Team,%0D%0A%0D%0AI am writing to express my interest in exploring opportunities with your organization.%0D%0A%0D%0APlease find my details below:%0D%0A%0D%0AName: %0D%0AContact Number: %0D%0APosition Applied For: %0D%0AYears of Experience: %0D%0ACurrent Location: %0D%0A%0D%0AI have attached my updated resume for your review.%0D%0A%0D%0AThank you for your consideration.%0D%0A%0D%0ABest regards," 
+                            href={`mailto:${contactEmail}?subject=Job Application - Resume Submission&body=Dear Kushi Consultancy Team,%0D%0A%0D%0AI am writing to express my interest in exploring opportunities with your organization.%0D%0A%0D%0APlease find my details below:%0D%0A%0D%0AName: %0D%0AContact Number: %0D%0APosition Applied For: %0D%0AYears of Experience: %0D%0ACurrent Location: %0D%0A%0D%0AI have attached my updated resume for your review.%0D%0A%0D%0AThank you for your consideration.%0D%0A%0D%0ABest regards,`}
                             className="email-button"
                         >
                             ✉️ Send Resume via Email
@@ -386,7 +416,7 @@ const UploadCV = () => {
                         <span className="icon">📧</span>
                         <div>
                             <strong>Email</strong>
-                            <a href="mailto:yogyatha.startup@gmail.com">yogyatha.startup@gmail.com</a>
+                            <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
                         </div>
                     </div>
 

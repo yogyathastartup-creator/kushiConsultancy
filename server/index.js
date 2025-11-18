@@ -2,6 +2,7 @@ import dotenv from 'dotenv';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
+import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import cookieParser from 'cookie-parser';
 import morgan from 'morgan';
@@ -11,6 +12,8 @@ import { logger } from './utils/logger.js';
 import authRoutes from './routes/auth.js';
 import uploadRoutes from './routes/upload.js';
 import emailRoutes from './routes/email.js';
+import recaptchaRoutes from './routes/recaptcha.js';
+import { connectToDatabase, closeDatabaseConnection } from './utils/db.js';
 
 dotenv.config();
 
@@ -21,20 +24,9 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Security Middleware
+// Use helmet for common protections but set CSP dynamically with per-request nonce below
 app.use(helmet({
-  contentSecurityPolicy: {
-    directives: {
-      defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdn.emailjs.com"],
-      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
-      fontSrc: ["'self'", "https://fonts.gstatic.com"],
-      imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", "https://api.emailjs.com"],
-      frameAncestors: ["'none'"],
-      baseUri: ["'self'"],
-      formAction: ["'self'"]
-    }
-  },
+  // Do not set contentSecurityPolicy here because we build a nonce-based CSP per request
   hsts: {
     maxAge: 31536000,
     includeSubDomains: true,
@@ -44,6 +36,32 @@ app.use(helmet({
   noSniff: true,
   xssFilter: true
 }));
+
+// CSP nonce middleware: attach a nonce and set a restrictive CSP header that allows the nonce for scripts
+app.use((req, res, next) => {
+  try {
+    const nonce = crypto.randomBytes(16).toString('base64');
+    res.locals.cspNonce = nonce;
+
+    const directives = [
+      `default-src 'self'`,
+      `script-src 'self' https://cdn.jsdelivr.net https://www.google.com/recaptcha/ 'nonce-${nonce}'`,
+      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+      `font-src 'self' https://fonts.gstatic.com`,
+      `img-src 'self' data: https:`,
+      `connect-src 'self' https://api.emailjs.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/`,
+      `frame-ancestors 'none'`,
+      `base-uri 'self'`,
+      `form-action 'self'`
+    ].join('; ');
+
+    res.setHeader('Content-Security-Policy', directives);
+  } catch (e) {
+    // If crypto fails, continue without nonce (server should still function)
+    logger.warn('Failed to generate CSP nonce', e?.message || e);
+  }
+  next();
+});
 
 // CORS Configuration
 const allowedOrigins = [
@@ -107,6 +125,7 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/email', emailRoutes);
+app.use('/api/recaptcha', recaptchaRoutes);
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
@@ -130,19 +149,32 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
-// Start Server
-app.listen(PORT, () => {
-  logger.info(`🔒 Secure server running on port ${PORT}`);
-  logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
-});
+// Connect to MongoDB first, then start the server. If DB connection fails,
+// the server will still start but will log the error.
+connectToDatabase()
+  .then(() => {
+    app.listen(PORT, () => {
+      logger.info(`🔒 Secure server running on port ${PORT}`);
+      logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
+  })
+  .catch((err) => {
+    logger.error('Could not connect to MongoDB. Starting server without DB connection.', { error: err.message });
+    app.listen(PORT, () => {
+      logger.info(`Server running on port ${PORT} (DB not connected)`);
+    });
+  });
 
-// Graceful Shutdown
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM signal received: closing HTTP server');
+// Graceful Shutdown: close DB connection then exit
+async function shutdown() {
+  logger.info('Shutdown initiated');
+  try {
+    await closeDatabaseConnection();
+  } catch (e) {
+    logger.warn('Error while closing DB connection', e?.message || e);
+  }
   process.exit(0);
-});
+}
 
-process.on('SIGINT', () => {
-  logger.info('SIGINT signal received: closing HTTP server');
-  process.exit(0);
-});
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);

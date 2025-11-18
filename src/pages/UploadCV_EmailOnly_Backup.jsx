@@ -2,6 +2,7 @@ import React from 'react';
 import '../styles/UploadCV.css';
 
 const UploadCV = () => {
+    const contactEmail = import.meta.env.VITE_CONTACT_EMAIL || 'yogyatha.startup@gmail.com';
     return (
         <div className="upload-cv-page">
             <h2>Submit Your Application</h2>
@@ -26,7 +27,7 @@ const UploadCV = () => {
                         <span className="step-number">2</span>
                         <div className="step-content">
                             <h4>Compose Your Email</h4>
-                            <p>Send your resume to: <strong>yogyatha.startup@gmail.com</strong></p>
+                            <p>Send your resume to: <strong>{contactEmail}</strong></p>
                         </div>
                     </div>
 
@@ -48,7 +49,7 @@ const UploadCV = () => {
 
                 <div className="email-button-section">
                     <a 
-                        href="mailto:yogyatha.startup@gmail.com?subject=Job Application - Resume Submission&body=Dear Kushi Consultancy Team,%0D%0A%0D%0AI am writing to express my interest in exploring opportunities with your organization.%0D%0A%0D%0APlease find my details below:%0D%0A%0D%0AName: %0D%0AContact Number: %0D%0APosition Applied For: %0D%0AYears of Experience: %0D%0ACurrent Location: %0D%0A%0D%0AI have attached my updated resume for your review.%0D%0A%0D%0AThank you for your consideration.%0D%0A%0D%0ABest regards," 
+                        href={`mailto:${contactEmail}?subject=Job Application - Resume Submission&body=Dear Kushi Consultancy Team,%0D%0A%0D%0AI am writing to express my interest in exploring opportunities with your organization.%0D%0A%0D%0APlease find my details below:%0D%0A%0D%0AName: %0D%0AContact Number: %0D%0APosition Applied For: %0D%0AYears of Experience: %0D%0ACurrent Location: %0D%0A%0D%0AI have attached my updated resume for your review.%0D%0A%0D%0AThank you for your consideration.%0D%0A%0D%0ABest regards,`}
                         className="email-button"
                     >
                         ✉️ Send Resume via Email
@@ -64,7 +65,7 @@ const UploadCV = () => {
                         <span className="icon">📧</span>
                         <div>
                             <strong>Email</strong>
-                            <a href="mailto:yogyatha.startup@gmail.com">yogyatha.startup@gmail.com</a>
+                            <a href={`mailto:${contactEmail}`}>{contactEmail}</a>
                         </div>
                     </div>
 

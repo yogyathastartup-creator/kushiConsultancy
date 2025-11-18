@@ -1,9 +1,15 @@
 import { MongoClient, ServerApiVersion } from 'mongodb';
 import { logger } from './logger.js';
 
-// Prefer environment variable; fallback to provided URI (not recommended for production)
-const DEFAULT_URI = 'mongodb+srv://yogyathastartup_db_user:O9IGPOm0wI7tv1Hw@kushi-consultancy.9k1qe5o.mongodb.net/?appName=kushi-consultancy';
-const uri = process.env.MONGODB_URI || process.env.MONGO_URI || DEFAULT_URI;
+// Use environment variable for MongoDB connection. Do NOT hard-code credentials in source.
+const uri = process.env.MONGODB_URI || process.env.MONGO_URI;
+
+if (!uri) {
+  // Fail fast to avoid accidental use of embedded credentials or unauthenticated DB access
+  const msg = 'Missing MongoDB connection string. Set the MONGODB_URI environment variable.';
+  logger.error(msg);
+  throw new Error(msg);
+}
 
 let client;
 let dbClient;

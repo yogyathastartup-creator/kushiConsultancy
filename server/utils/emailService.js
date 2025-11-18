@@ -21,12 +21,18 @@ const createTransporter = () => {
     }
 
     // Gmail fallback (requires App Password with 2FA enabled)
+    const user = process.env.EMAIL_USER;
+    const pass = (process.env.EMAIL_PASSWORD || '').replace(/\s+/g, '');
+
+    if (!user || !pass) {
+        const msg = 'EMAIL_USER and EMAIL_PASSWORD must be set to send emails. Configure SMTP or Gmail app password in environment variables.';
+        logger.error(msg);
+        throw new Error(msg);
+    }
+
     return nodemailer.createTransport({
         service: 'gmail',
-        auth: {
-            user: process.env.EMAIL_USER || 'yogyatha.startup@gmail.com',
-            pass: (process.env.EMAIL_PASSWORD || '').replace(/\s+/g, ''),
-        },
+        auth: { user, pass }
     });
 };
 
@@ -199,7 +205,7 @@ export const sendCVUploadNotification = async (applicantData, filePath, original
                 address: process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@kushiconsultancy.com',
             },
             // support comma-separated recipients if provided
-            to: process.env.EMAIL_TO || process.env.EMAIL_USER || 'madhu@kushiconsultancy.com',
+            to: process.env.EMAIL_TO || process.env.EMAIL_USER,
             subject: `New CV Submission: ${applicantData.name} - ${applicantData.position}`,
             html: emailTemplate,
             attachments: [
@@ -237,6 +243,11 @@ export const sendTestEmail = async () => {
     try {
         const transporter = createTransporter();
         const to = process.env.EMAIL_TO || process.env.EMAIL_USER;
+        if (!to) {
+            const msg = 'No recipient configured for test email. Set EMAIL_TO or EMAIL_USER.';
+            logger.error(msg);
+            return { success: false, error: msg };
+        }
 
         const html = `
             <div style="font-family: Arial, sans-serif; line-height:1.6">

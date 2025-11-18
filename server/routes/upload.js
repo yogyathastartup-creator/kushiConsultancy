@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import { body, validationResult } from 'express-validator';
 import { logger, securityLogger } from '../utils/logger.js';
 import { sendCVUploadNotification } from '../utils/emailService.js';
+import { scanFile } from '../utils/avScanner.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -17,6 +18,33 @@ const router = express.Router();
 const UPLOAD_DIR = path.join(__dirname, '../uploads');
 const ensureUploadDir = async () => {
   try {
+    // If reCAPTCHA is configured, validate the token
+    const recaptchaSecret = process.env.RECAPTCHA_SECRET_KEY;
+    if (recaptchaSecret) {
+      const token = req.body.recaptchaToken;
+      if (!token) {
+        await fs.unlink(req.file.path).catch(err => logger.error('Failed to delete file (missing recaptcha):', err));
+        securityLogger.logSuspiciousActivity('missing_recaptcha_token', ip, { filename: req.file.originalname });
+        return res.status(400).json({ success: false, message: 'reCAPTCHA verification failed' });
+      }
+
+      try {
+        const params = new URLSearchParams();
+        params.append('secret', recaptchaSecret);
+        params.append('response', token);
+
+        const resp = await fetch('https://www.google.com/recaptcha/api/siteverify', { method: 'POST', body: params });
+        const verification = await resp.json();
+        if (!verification.success || (verification.score !== undefined && verification.score < 0.5)) {
+          await fs.unlink(req.file.path).catch(err => logger.error('Failed to delete file (recaptcha failed):', err));
+          securityLogger.logSuspiciousActivity('recaptcha_failed', ip, { verification, filename: req.file.originalname });
+          return res.status(400).json({ success: false, message: 'reCAPTCHA verification failed' });
+        }
+      } catch (err) {
+        logger.warn('reCAPTCHA verification error', err?.message || err);
+        // If recaptcha verification service fails, continue but log
+      }
+    }
     await fs.access(UPLOAD_DIR);
   } catch {
     await fs.mkdir(UPLOAD_DIR, { recursive: true, mode: 0o700 }); // Restrictive permissions
@@ -148,7 +176,14 @@ router.post('/cv', (req, res, next) => {
 
   try {
     // Additional security: verify file content matches MIME type
-    // In production, add virus scanning here (e.g., ClamAV)
+    // AV-scan: run a virus/malware scanner before accepting the file
+    const scanResult = await scanFile(req.file.path);
+    if (!scanResult || !scanResult.clean) {
+      // Delete the uploaded file and reject
+      await fs.unlink(req.file.path).catch(err => logger.error('Failed to delete infected file:', err));
+      securityLogger.logFileUpload(req.file.originalname, req.file.size, ip, false, 'av_scan_failed');
+      return res.status(400).json({ success: false, message: 'Uploaded file failed virus scan' });
+    }
     
     const fileInfo = {
       originalName: req.file.originalname,
