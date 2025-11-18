@@ -7,7 +7,7 @@ const Footer = () => {
             <div className="footer-content">
                 <div className="footer-section">
                     <h3>Contact Us</h3>
-                    <p>📧 Email: ***REMOVED***</p>
+                    <p>📧 Email: {import.meta.env.VITE_CONTACT_EMAIL || 'contact@kushiconsultancy.com'}</p>
                     <p>📞 Phone: +91 93619 70260</p>
                     <p>📱 Mobile: +91 96770 54461</p>
                 </div>
