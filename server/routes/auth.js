@@ -94,7 +94,8 @@ router.post('/login', authLimiter, loginValidation, async (req, res) => {
 
     // Attempt to load admin credentials from DB; fall back to env variables
     let adminUsername = process.env.ADMIN_USERNAME || 'admin';
-    let adminPassword = process.env.ADMIN_PASSWORD || '***REMOVED***';
+    // Do NOT hardcode passwords in source. Read from env or DB only.
+    let adminPassword = process.env.ADMIN_PASSWORD || '';
 
     try {
       const client = getMongoClient();
