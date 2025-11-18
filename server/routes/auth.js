@@ -1,5 +1,5 @@
 import express from 'express';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import { body, validationResult } from 'express-validator';
@@ -120,9 +120,19 @@ router.post('/login', authLimiter, loginValidation, async (req, res) => {
       });
     }
 
-    // Verify password (in production, compare hashed password with bcrypt)
-    const isValidPassword = password === adminPassword;
-    
+    // Verify password: prefer bcrypt hashed password comparison, fall back to plaintext
+    let isValidPassword = false;
+    try {
+      if (typeof adminPassword === 'string' && adminPassword.startsWith('$2')) {
+        isValidPassword = bcrypt.compareSync(password, adminPassword);
+      } else {
+        isValidPassword = password === adminPassword;
+      }
+    } catch (err) {
+      logger.warn('Password comparison error', err?.message || err);
+      isValidPassword = false;
+    }
+
     if (!isValidPassword) {
       recordFailedAttempt(username);
       securityLogger.logAuthAttempt(username, false, ip, 'invalid_password');
