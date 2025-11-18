@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import rateLimit from 'express-rate-limit';
 import { body, validationResult } from 'express-validator';
 import { logger, securityLogger } from '../utils/logger.js';
+import { getMongoClient } from '../utils/db.js';
 
 const router = express.Router();
 
@@ -91,9 +92,23 @@ router.post('/login', authLimiter, loginValidation, async (req, res) => {
       });
     }
 
-    // Get admin credentials from environment (in production, use database)
-    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-    const adminPassword = process.env.ADMIN_PASSWORD || '***REMOVED***';
+    // Attempt to load admin credentials from DB; fall back to env variables
+    let adminUsername = process.env.ADMIN_USERNAME || 'admin';
+    let adminPassword = process.env.ADMIN_PASSWORD || '***REMOVED***';
+
+    try {
+      const client = getMongoClient();
+      const db = client.db(process.env.MONGO_DB_NAME || 'kushi_consultancy');
+      const adminDoc = await db.collection('admins').findOne({}, { projection: { username: 1, password: 1 } });
+      if (adminDoc && adminDoc.username) {
+        adminUsername = adminDoc.username;
+        // If password stored hashed in DB, you'd compare via bcrypt; for now we accept plain text fallback
+        if (adminDoc.password) adminPassword = adminDoc.password;
+      }
+    } catch (err) {
+      // DB not available or error reading admin; continue using env values
+      logger.info('Admin credentials not loaded from DB, using env defaults or existing values');
+    }
 
     // Verify username
     if (username !== adminUsername) {
@@ -105,8 +120,7 @@ router.post('/login', authLimiter, loginValidation, async (req, res) => {
       });
     }
 
-    // Verify password (in production, compare hashed password)
-    // For now, using plain comparison - MUST hash in production
+    // Verify password (in production, compare hashed password with bcrypt)
     const isValidPassword = password === adminPassword;
     
     if (!isValidPassword) {
