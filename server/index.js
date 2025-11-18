@@ -10,6 +10,7 @@ import { fileURLToPath } from 'url';
 import { logger } from './utils/logger.js';
 import authRoutes from './routes/auth.js';
 import uploadRoutes from './routes/upload.js';
+import emailRoutes from './routes/email.js';
 
 dotenv.config();
 
@@ -105,6 +106,7 @@ app.get('/health', (req, res) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/email', emailRoutes);
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
