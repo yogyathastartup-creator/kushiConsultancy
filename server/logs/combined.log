@@ -98,3 +98,5 @@
 {"level":"info","message":"Environment: development","service":"kushi-consultancy","timestamp":"2025-11-18 09:39:51"}
 {"event":"auth_attempt","ip":"::1","level":"warn","message":"Authentication attempt","reason":"","service":"kushi-consultancy","success":true,"timestamp":"2025-11-18T04:11:27.043Z","username":"admin"}
 {"level":"info","message":"SIGINT signal received: closing HTTP server","service":"kushi-consultancy","timestamp":"2025-11-18 10:32:35"}
+{"level":"info","message":"🔒 Secure server running on port 3001","service":"kushi-consultancy","timestamp":"2025-11-18 10:59:48"}
+{"level":"info","message":"Environment: development","service":"kushi-consultancy","timestamp":"2025-11-18 10:59:48"}

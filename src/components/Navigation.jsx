@@ -11,6 +11,7 @@ const Navigation = () => {
                 <li><NavLink to="/services" className={({ isActive }) => isActive ? 'active' : ''}>Services</NavLink></li>
                 <li><NavLink to="/recruitment" className={({ isActive }) => isActive ? 'active' : ''}>Recruitment</NavLink></li>
                 <li><NavLink to="/upload-cv" className={({ isActive }) => isActive ? 'active' : ''}>Upload CV</NavLink></li>
+                <li><NavLink to="/projects" className={({ isActive }) => isActive ? 'active' : ''}>Projects</NavLink></li>
             </ul>
         </nav>
     );

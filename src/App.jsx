@@ -14,6 +14,7 @@ const RecruitmentPage = lazy(() => import('./pages/RecruitmentPage'));
 const UploadCV = lazy(() => import('./pages/UploadCV'));
 const AdminLogin = lazy(() => import('./pages/AdminLogin'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const Projects = lazy(() => import('./pages/Projects'));
 
 // Loading fallback component
 const LoadingSpinner = () => (
@@ -58,6 +59,7 @@ const App = () => {
                       <Route path="/services" element={<ServicesPage />} />
                       <Route path="/recruitment" element={<RecruitmentPage />} />
                       <Route path="/upload-cv" element={<UploadCV />} />
+                      <Route path="/projects" element={<Projects />} />
                     </Routes>
                   </Suspense>
                 </main>
