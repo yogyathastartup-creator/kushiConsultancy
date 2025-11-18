@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import dotenv from 'dotenv';
-import bcrypt from 'bcryptjs';
+import bcrypt from 'bcrypt';
 import { connectToDatabase, closeDatabaseConnection, getMongoClient } from '../utils/db.js';
 
 dotenv.config();
