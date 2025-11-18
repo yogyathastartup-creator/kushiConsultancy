@@ -15,7 +15,7 @@ const createTransporter = () => {
             secure, // true for 465, false for 587/STARTTLS
             auth: {
                 user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASSWORD,
+                pass: (process.env.EMAIL_PASSWORD || '').replace(/\s+/g, ''),
             },
         });
     }
@@ -25,7 +25,7 @@ const createTransporter = () => {
         service: 'gmail',
         auth: {
             user: process.env.EMAIL_USER || 'yogyatha.startup@gmail.com',
-            pass: process.env.EMAIL_PASSWORD,
+            pass: (process.env.EMAIL_PASSWORD || '').replace(/\s+/g, ''),
         },
     });
 };

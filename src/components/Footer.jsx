@@ -7,7 +7,7 @@ const Footer = () => {
             <div className="footer-content">
                 <div className="footer-section">
                     <h3>Contact Us</h3>
-                    <p>📧 Email: madhu@kushiconsultancy.com</p>
+                    <p>📧 Email: kushi.yogyatha@gmail.com</p>
                     <p>📞 Phone: +91 93619 70260</p>
                     <p>📱 Mobile: +91 96770 54461</p>
                 </div>
