@@ -94,10 +94,15 @@ if (process.env.NODE_ENV === 'production') {
   app.use(morgan('dev'));
 }
 
-// Global Rate Limiting
+// Global Rate Limiting - Hardened for Vercel
+const getRateLimitValue = (envVar, defaultValue) => {
+  const value = Number(envVar);
+  return isNaN(value) ? defaultValue : value;
+};
+
 const globalLimiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
+  windowMs: getRateLimitValue(process.env.RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
+  max: getRateLimitValue(process.env.RATE_LIMIT_MAX_REQUESTS, 100),
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
