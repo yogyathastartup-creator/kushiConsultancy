@@ -58,29 +58,7 @@ app.use(helmet({
 //   next();
 // });
 
-// Simplified and hardened CORS Configuration for Vercel
-const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',').filter(Boolean);
-
-// In production, log the origins to help with debugging.
-if (process.env.NODE_ENV === 'production') {
-  logger.info(`Configured CORS allowed origins: ${JSON.stringify(allowedOrigins)}`);
-}
-
-const corsOptions = {
-  origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps or curl requests) and requests from allowed origins.
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      logger.error(`CORS Error: Origin ${origin} not allowed.`);
-      callback(new Error('Not allowed by CORS'));
-    }
-  },
-  credentials: true,
-  optionsSuccessStatus: 200, // For legacy browser support
-};
-
-app.use(cors(corsOptions));
+app.use(cors());
 
 // Body Parser & Cookie Parser
 app.use(express.json({ limit: '10mb' }));
@@ -159,12 +137,9 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
-// Start server only when not in a serverless environment (like Vercel)
-if (!process.env.VERCEL) {
-  app.listen(PORT, () => {
-    logger.info(`🚀 Server running on port ${PORT}`);
-    logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  });
-}
+// Start server
+app.listen(PORT, () => {
+  logger.info(`🚀 Server running on port ${PORT}`);
+});
 
 export default app;
