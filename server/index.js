@@ -145,8 +145,8 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
-// Start server if not running in Vercel (serverless)
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+// Start server only when not in a serverless environment (like Vercel)
+if (!process.env.VERCEL) {
   app.listen(PORT, () => {
     logger.info(`🚀 Server running on port ${PORT}`);
     logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
@@ -154,12 +154,3 @@ if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
 }
 
 export default app;
-
-// Simplified graceful shutdown
-function shutdown() {
-  logger.info('Shutdown initiated');
-  process.exit(0);
-}
-
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
