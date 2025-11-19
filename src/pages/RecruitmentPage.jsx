@@ -79,7 +79,7 @@ const defaultRecruitmentData = {
 
 const RecruitmentPage = () => {
     const [recruitmentData, setRecruitmentData] = useState(defaultRecruitmentData);
-    const [selectedCategory, setSelectedCategory] = useState('Civil Engineering');
+    const [expandedCategories, setExpandedCategories] = useState({});
     const [selectedJd, setSelectedJd] = useState(null);
     const navigate = useNavigate();
 
@@ -87,17 +87,19 @@ const RecruitmentPage = () => {
         // Load recruitment data from localStorage (admin changes)
         const savedData = localStorage.getItem('recruitmentData');
         if (savedData) {
-            const parsedData = JSON.parse(savedData);
-            setRecruitmentData(parsedData);
-            // Set first category as default if current doesn't exist
-            if (!parsedData[selectedCategory]) {
-                setSelectedCategory(Object.keys(parsedData)[0] || 'Civil Engineering');
-            }
+            setRecruitmentData(JSON.parse(savedData));
         } else {
             // Initialize with default data
             localStorage.setItem('recruitmentData', JSON.stringify(defaultRecruitmentData));
         }
     }, []);
+
+    const toggleCategory = (category) => {
+        setExpandedCategories(prev => ({
+            ...prev,
+            [category]: !prev[category]
+        }));
+    };
 
     const handlePositionClick = (position) => {
         const isString = typeof position === 'string';
@@ -119,45 +121,37 @@ const RecruitmentPage = () => {
                 We recruit top engineering talent across multiple disciplines for leading EPC/EPCM companies worldwide.
             </p>
 
-            <div className="category-tabs">
-                {Object.keys(recruitmentData).map((category) => (
-                    <button
-                        key={category}
-                        className={`tab-button ${selectedCategory === category ? 'active' : ''}`}
-                        onClick={() => setSelectedCategory(category)}
-                    >
-                        {category}
-                    </button>
-                ))}
-            </div>
-
-            <div className="positions-container">
-                <h3>{selectedCategory}</h3>
-                <ul className="positions-list">
-                    {recruitmentData[selectedCategory].map((position, index) => {
-                        const posTitle = typeof position === 'string' ? position : position.title;
-                        const posJd = typeof position === 'string' ? '' : position.jd;
-                        return (
-                            <li 
-                                key={index} 
-                                className={`position-item ${posJd ? 'has-jd' : ''}`}
-                                onClick={() => handlePositionClick(position)}
-                                role="button"
-                                tabIndex={0}
-                                onKeyDown={(e) => {
-                                    if (e.key === 'Enter' || e.key === ' ') {
-                                        e.preventDefault();
-                                        handlePositionClick(position);
-                                    }
-                                }}
+            <div className="recruitment-grid">
+                {Object.entries(recruitmentData).map(([category, positions]) => (
+                    <div key={category} className="category-card">
+                        <h3>{category}</h3>
+                        <ul className="positions-list">
+                            {positions.slice(0, expandedCategories[category] ? undefined : 5).map((position, index) => {
+                                const posTitle = typeof position === 'string' ? position : position.title;
+                                return (
+                                    <li key={index} className="position-item">
+                                        <span className="position-bullet">•</span>
+                                        <span className="position-name">{posTitle}</span>
+                                        <button 
+                                            className="apply-now-btn"
+                                            onClick={() => handlePositionClick(position)}
+                                        >
+                                            Apply Now
+                                        </button>
+                                    </li>
+                                );
+                            })}
+                        </ul>
+                        {positions.length > 5 && (
+                            <button 
+                                className="show-more-btn"
+                                onClick={() => toggleCategory(category)}
                             >
-                                <span className="position-icon">👔</span>
-                                <span className="position-name">{posTitle}</span>
-                                {posJd && <span className="jd-badge">View JD</span>}
-                            </li>
-                        );
-                    })}
-                </ul>
+                                {expandedCategories[category] ? 'Show Less' : `+${positions.length - 5} more...`}
+                            </button>
+                        )}
+                    </div>
+                ))}
             </div>
 
             <div className="recruitment-cta">

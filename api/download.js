@@ -1,3 +1,8 @@
+// ⚠️ WARNING: This file is for SERVERLESS deployment (Vercel) only!
+// It requires AWS S3 configuration and is NOT used by the Express server.
+// The Express server stores files locally and sends them via email.
+// Required environment variables: S3_REGION, S3_KEY, S3_SECRET, S3_BUCKET
+
 import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 

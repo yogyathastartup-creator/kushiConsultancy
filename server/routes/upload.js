@@ -4,6 +4,7 @@ import path from 'path';
 import { promises as fs } from 'fs';
 import crypto from 'crypto';
 import { fileURLToPath } from 'url';
+import os from 'os';
 import { body, validationResult } from 'express-validator';
 import { logger, securityLogger } from '../utils/logger.js';
 import { sendCVUploadNotification } from '../utils/emailService.js';
@@ -14,40 +15,15 @@ const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-// Ensure upload directory exists outside web root
-const UPLOAD_DIR = path.join(__dirname, '../uploads');
+// Use system temp directory for uploads (compatible with Vercel/Serverless)
+const UPLOAD_DIR = os.tmpdir();
 const ensureUploadDir = async () => {
+  // Temp dir always exists, but good to be safe
   try {
-    // If reCAPTCHA is configured, validate the token
-    const recaptchaSecret = process.env.RECAPTCHA_SECRET_KEY;
-    if (recaptchaSecret) {
-      const token = req.body.recaptchaToken;
-      if (!token) {
-        await fs.unlink(req.file.path).catch(err => logger.error('Failed to delete file (missing recaptcha):', err));
-        securityLogger.logSuspiciousActivity('missing_recaptcha_token', ip, { filename: req.file.originalname });
-        return res.status(400).json({ success: false, message: 'reCAPTCHA verification failed' });
-      }
-
-      try {
-        const params = new URLSearchParams();
-        params.append('secret', recaptchaSecret);
-        params.append('response', token);
-
-        const resp = await fetch('https://www.google.com/recaptcha/api/siteverify', { method: 'POST', body: params });
-        const verification = await resp.json();
-        if (!verification.success || (verification.score !== undefined && verification.score < 0.5)) {
-          await fs.unlink(req.file.path).catch(err => logger.error('Failed to delete file (recaptcha failed):', err));
-          securityLogger.logSuspiciousActivity('recaptcha_failed', ip, { verification, filename: req.file.originalname });
-          return res.status(400).json({ success: false, message: 'reCAPTCHA verification failed' });
-        }
-      } catch (err) {
-        logger.warn('reCAPTCHA verification error', err?.message || err);
-        // If recaptcha verification service fails, continue but log
-      }
-    }
     await fs.access(UPLOAD_DIR);
   } catch {
-    await fs.mkdir(UPLOAD_DIR, { recursive: true, mode: 0o700 }); // Restrictive permissions
+    // Should not happen for os.tmpdir(), but fallback just in case
+    await fs.mkdir(UPLOAD_DIR, { recursive: true, mode: 0o700 });
   }
 };
 ensureUploadDir();
@@ -175,6 +151,33 @@ router.post('/cv', (req, res, next) => {
   }
 
   try {
+    // reCAPTCHA validation if configured
+    const recaptchaSecret = process.env.RECAPTCHA_SECRET_KEY;
+    if (recaptchaSecret) {
+      const token = req.body.recaptchaToken;
+      if (!token) {
+        await fs.unlink(req.file.path).catch(err => logger.error('Failed to delete file (missing recaptcha):', err));
+        securityLogger.logSuspiciousActivity('missing_recaptcha_token', ip, { filename: req.file.originalname });
+        return res.status(400).json({ success: false, message: 'reCAPTCHA verification failed' });
+      }
+
+      try {
+        const params = new URLSearchParams();
+        params.append('secret', recaptchaSecret);
+        params.append('response', token);
+
+        const resp = await fetch('https://www.google.com/recaptcha/api/siteverify', { method: 'POST', body: params });
+        const verification = await resp.json();
+        if (!verification.success || (verification.score !== undefined && verification.score < 0.5)) {
+          await fs.unlink(req.file.path).catch(err => logger.error('Failed to delete file (recaptcha failed):', err));
+          securityLogger.logSuspiciousActivity('recaptcha_failed', ip, { verification, filename: req.file.originalname });
+          return res.status(400).json({ success: false, message: 'reCAPTCHA verification failed' });
+        }
+      } catch (err) {
+        logger.warn('reCAPTCHA verification error', err?.message || err);
+      }
+    }
+
     // Additional security: verify file content matches MIME type
     // AV-scan: run a virus/malware scanner before accepting the file
     const scanResult = await scanFile(req.file.path);

@@ -14,8 +14,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'validation': ['validator', 'dompurify', 'isomorphic-dompurify'],
-          'emailjs': ['emailjs-com']
+          'validation': ['validator', 'dompurify', 'isomorphic-dompurify']
         }
       }
     },

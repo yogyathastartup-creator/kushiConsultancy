@@ -48,3 +48,4 @@ Thumbs.db
 
 # Ignore server logs directory
 server/logs/
+.vercel

@@ -141,6 +141,7 @@ const UploadCV = () => {
         setSuccess(false);
 
         try {
+            // Get reCAPTCHA token if configured
             const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
             let recaptchaToken = null;
             if (siteKey && window.grecaptcha) {
@@ -150,45 +151,38 @@ const UploadCV = () => {
                     console.warn('reCAPTCHA execution failed', e);
                 }
             }
-            // Presigned S3 upload flow
-            const apiBase = import.meta.env.VITE_API_URL || '';
-            // 1) request presign
-            const presignResp = await fetch(`${apiBase}/presign`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filename: file.name, contentType: file.type })
-            });
-            const presignData = await presignResp.json();
-            if (!presignResp.ok || !presignData.ok) throw new Error('Failed to get presign URL');
 
-            // 2) upload directly to S3
-            const uploadUrl = presignData.url;
-            const putResp = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': file.type }, body: file });
-            if (!putResp.ok) throw new Error('Failed to upload to storage');
+            // Create FormData for multipart upload to Express server
+            const uploadData = new FormData();
+            uploadData.append('cv', file);
+            uploadData.append('name', formData.name);
+            uploadData.append('email', formData.email);
+            uploadData.append('phone', formData.phone);
+            uploadData.append('position', formData.position);
+            uploadData.append('experience', formData.experience);
+            uploadData.append('location', formData.location);
+            if (recaptchaToken) {
+                uploadData.append('recaptchaToken', recaptchaToken);
+            }
 
-            // 3) notify backend (save metadata)
-            const completeResp = await fetch(`${apiBase}/uploadComplete`, {
+            // Upload to Express server endpoint
+            const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
+            const response = await fetch(`${serverUrl}/api/upload/cv`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    key: presignData.key,
-                    originalName: file.name,
-                    name: formData.name,
-                    email: formData.email,
-                    phone: formData.phone,
-                    position: formData.position,
-                    experience: formData.experience,
-                    location: formData.location
-                })
+                body: uploadData,
+                // Don't set Content-Type header - browser will set it with boundary for multipart/form-data
             });
-            const completeData = await completeResp.json();
-            if (completeResp.ok && completeData.ok) {
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
                 setSuccess(true);
                 setFormData({ name: '', email: '', phone: '', position: '', experience: '', location: '' });
                 setFile(null);
-                document.getElementById('cv-file-input').value = '';
+                const fileInput = document.getElementById('cv-file-input');
+                if (fileInput) fileInput.value = '';
             } else {
-                setErrors({ submit: completeData.error || 'Upload failed at finalization step.' });
+                setErrors({ submit: result.message || result.error || 'Upload failed. Please try again.' });
             }
         } catch (error) {
             console.error('Upload error:', error);

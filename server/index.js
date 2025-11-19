@@ -13,7 +13,6 @@ import authRoutes from './routes/auth.js';
 import uploadRoutes from './routes/upload.js';
 import emailRoutes from './routes/email.js';
 import recaptchaRoutes from './routes/recaptcha.js';
-import { connectToDatabase, closeDatabaseConnection } from './utils/db.js';
 
 dotenv.config();
 
@@ -24,9 +23,7 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Security Middleware
-// Use helmet for common protections but set CSP dynamically with per-request nonce below
 app.use(helmet({
-  // Do not set contentSecurityPolicy here because we build a nonce-based CSP per request
   hsts: {
     maxAge: 31536000,
     includeSubDomains: true,
@@ -37,7 +34,7 @@ app.use(helmet({
   xssFilter: true
 }));
 
-// CSP nonce middleware: attach a nonce and set a restrictive CSP header that allows the nonce for scripts
+// CSP nonce middleware
 app.use((req, res, next) => {
   try {
     const nonce = crypto.randomBytes(16).toString('base64');
@@ -57,7 +54,6 @@ app.use((req, res, next) => {
 
     res.setHeader('Content-Security-Policy', directives);
   } catch (e) {
-    // If crypto fails, continue without nonce (server should still function)
     logger.warn('Failed to generate CSP nonce', e?.message || e);
   }
   next();
@@ -73,7 +69,6 @@ const allowedOrigins = [
 
 const corsOptions = {
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
     if (allowedOrigins.indexOf(origin) !== -1) {
@@ -101,7 +96,7 @@ if (process.env.NODE_ENV === 'production') {
 
 // Global Rate Limiting
 const globalLimiter = rateLimit({
-  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000,
   max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100,
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
@@ -118,7 +113,10 @@ app.use(globalLimiter);
 
 // Health Check Endpoint
 app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString()
+  });
 });
 
 // API Routes
@@ -136,7 +134,6 @@ app.use((err, req, res, next) => {
     ip: req.ip
   });
 
-  // Don't leak error details in production
   const isDev = process.env.NODE_ENV !== 'production';
   res.status(err.status || 500).json({
     error: isDev ? err.message : 'Internal server error',
@@ -149,32 +146,21 @@ app.use((req, res) => {
   res.status(404).json({ error: 'Not found' });
 });
 
-// Connect to MongoDB first, then start the server. If DB connection fails,
-// the server will still start but will log the error.
-connectToDatabase()
-  .then(() => {
-    app.listen(PORT, () => {
-      logger.info(`🔒 Secure server running on port ${PORT}`);
-      logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
-    });
-  })
-  .catch((err) => {
-    logger.error('Could not connect to MongoDB. Starting server without DB connection.', { error: err.message });
-    app.listen(PORT, () => {
-      logger.info(`Server running on port ${PORT} (DB not connected)`);
-    });
+// Start server if not running in Vercel (serverless)
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    logger.info(`🚀 Server running on port ${PORT}`);
+    logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
   });
+}
 
-// Graceful Shutdown: close DB connection then exit
-async function shutdown() {
+export default app;
+
+// Simplified graceful shutdown
+function shutdown() {
   logger.info('Shutdown initiated');
-  try {
-    await closeDatabaseConnection();
-  } catch (e) {
-    logger.warn('Error while closing DB connection', e?.message || e);
-  }
   process.exit(0);
 }
 
 process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
+process.on('SIGINT', shutdown); 

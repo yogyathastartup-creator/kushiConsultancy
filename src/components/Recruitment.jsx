@@ -32,7 +32,16 @@ const Recruitment = () => {
                             }
                         }}
                     >
-                        {area}
+                        <span className="area-name">{area}</span>
+                        <button 
+                            className="apply-btn-small"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                navigate(`/upload-cv?position=${encodeURIComponent(area)}`);
+                            }}
+                        >
+                            Apply Now
+                        </button>
                     </li>
                 ))}
             </ul>
