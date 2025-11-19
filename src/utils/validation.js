@@ -14,6 +14,9 @@ export const sanitizeInput = (input) => {
   sanitized = sanitized.replace(/javascript:/gi, '');
   sanitized = sanitized.replace(/on\w+\s*=/gi, '');
   
+  // Normalize multiple spaces to single space, preserve single spaces
+  sanitized = sanitized.replace(/\s+/g, ' ');
+  
   // Trim only leading/trailing whitespace, preserve internal spaces
   return sanitized.trim();
 };

@@ -103,7 +103,7 @@ const Home = () => {
                                         return (
                                             <li key={pidx}>
                                                 <span className="position-title-text">{posTitle}</span>
-                                                <a href="/upload-cv" className="apply-now-btn">Apply Now</a>
+                                                <a href={`/upload-cv?position=${encodeURIComponent(posTitle)}`} className="apply-now-btn">Apply Now</a>
                                             </li>
                                         );
                                     })}

@@ -38,7 +38,8 @@ const UploadCV = () => {
     React.useEffect(() => {
         const params = new URLSearchParams(location.search);
         const positionParam = params.get('position');
-        if (positionParam && !formData.position) {
+        if (positionParam) {
+            // Always update position from URL parameter
             setFormData(prev => ({ ...prev, position: positionParam }));
             // If upload is disabled (email-only), keep method as email; otherwise switch to form for convenience
             if (cvUploadEnabled) {
@@ -50,10 +51,16 @@ const UploadCV = () => {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        const sanitized = sanitizeInput(value);
+        // Don't sanitize during typing - only remove dangerous patterns
+        // Full sanitization happens on submit
+        let cleanValue = value;
+        // Only remove script tags and dangerous patterns in real-time
+        cleanValue = cleanValue.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
+        cleanValue = cleanValue.replace(/javascript:/gi, '');
+        
         setFormData(prev => ({
             ...prev,
-            [name]: sanitized
+            [name]: cleanValue
         }));
         // Clear error for this field
         if (errors[name]) {
@@ -120,6 +127,19 @@ const UploadCV = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
+        // Sanitize all form data before validation
+        const sanitizedFormData = {
+            name: sanitizeInput(formData.name),
+            email: sanitizeInput(formData.email),
+            phone: sanitizeInput(formData.phone),
+            position: sanitizeInput(formData.position),
+            experience: sanitizeInput(formData.experience),
+            location: sanitizeInput(formData.location)
+        };
+        
+        // Update form data with sanitized values
+        setFormData(sanitizedFormData);
+        
         if (!validateForm()) {
             return;
         }
@@ -131,12 +151,12 @@ const UploadCV = () => {
             // Create FormData for multipart upload to Express server
             const uploadData = new FormData();
             uploadData.append('cv', file);
-            uploadData.append('name', formData.name);
-            uploadData.append('email', formData.email);
-            uploadData.append('phone', formData.phone);
-            uploadData.append('position', formData.position);
-            uploadData.append('experience', formData.experience);
-            uploadData.append('location', formData.location);
+            uploadData.append('name', sanitizedFormData.name);
+            uploadData.append('email', sanitizedFormData.email);
+            uploadData.append('phone', sanitizedFormData.phone);
+            uploadData.append('position', sanitizedFormData.position);
+            uploadData.append('experience', sanitizedFormData.experience);
+            uploadData.append('location', sanitizedFormData.location);
 
             // Upload to Express server endpoint
             const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
