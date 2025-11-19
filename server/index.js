@@ -41,9 +41,9 @@ app.use((req, res, next) => {
 
     const directives = [
       `default-src 'self'`,
-      `script-src 'self' https://cdn.jsdelivr.net`,
+      `script-src 'self' https://cdn.jsdelivr.net 'nonce-${nonce}'`,
       `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
-      `font-src 'self' https://fonts.gstatic.com`,
+      `font-src 'self' data: https://fonts.gstatic.com`,
       `img-src 'self' data: https:`,
       `connect-src 'self' https://api.emailjs.com https://kushiconsultancy.onrender.com`,
       `frame-ancestors 'none'`,
