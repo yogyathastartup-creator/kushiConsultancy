@@ -58,28 +58,28 @@ app.use((req, res, next) => {
   next();
 });
 
-// Updated CORS Configuration to support multiple origins
-const allowedOrigins = [
-  'http://localhost:5173',
-  'http://localhost:3000',
-  'http://localhost:5174',
-  ...process.env.CORS_ORIGINS?.split(',') || []
-].filter(Boolean);
+// Simplified and hardened CORS Configuration for Vercel
+const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',').filter(Boolean);
+
+// In production, log the origins to help with debugging.
+if (process.env.NODE_ENV === 'production') {
+  logger.info(`Configured CORS allowed origins: ${JSON.stringify(allowedOrigins)}`);
+}
 
 const corsOptions = {
-  origin: function (origin, callback) {
-    if (!origin) return callback(null, true);
-
-    if (allowedOrigins.includes(origin)) {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps or curl requests) and requests from allowed origins.
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      logger.warn(`CORS blocked origin: ${origin}`);
+      logger.error(`CORS Error: Origin ${origin} not allowed.`);
       callback(new Error('Not allowed by CORS'));
     }
   },
   credentials: true,
-  optionsSuccessStatus: 200
+  optionsSuccessStatus: 200, // For legacy browser support
 };
+
 app.use(cors(corsOptions));
 
 // Body Parser & Cookie Parser
