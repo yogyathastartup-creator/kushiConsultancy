@@ -111,10 +111,11 @@ const globalLimiter = rateLimit({
 });
 app.use(globalLimiter);
 
-// Health Check Endpoint
-app.get('/health', (req, res) => {
+// Health Check Endpoint - Vercel requires a root-level health check
+app.get('/', (req, res) => {
   res.status(200).json({ 
     status: 'OK', 
+    message: 'Health check successful',
     timestamp: new Date().toISOString()
   });
 });
@@ -123,6 +124,14 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/email', emailRoutes);
+
+// Keep the existing /health route for consistency if needed
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'OK', 
+    timestamp: new Date().toISOString()
+  });
+});
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
