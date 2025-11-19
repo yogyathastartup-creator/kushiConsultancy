@@ -41,8 +41,8 @@ const AdminLogin = () => {
         }
 
         try {
-            // Call secure backend API
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/auth/login`, {
+            // Call secure backend API with robust error handling
+            fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -52,24 +52,42 @@ const AdminLogin = () => {
                     username: credentials.username,
                     password: credentials.password
                 })
+            })
+            .then(response => {
+                const contentType = response.headers.get('Content-Type');
+                if (response.ok && contentType && contentType.includes('application/json')) {
+                    return response.json();
+                }
+                // If not OK or not JSON, parse as text to see the error
+                return response.text().then(text => {
+                    throw new Error(`Server responded with ${response.status}: ${text}`);
+                });
+            })
+            .then(data => {
+                if (data.success) {
+                    // Set admin session
+                    sessionStorage.setItem('adminLoggedIn', 'true');
+                    sessionStorage.setItem('adminUser', JSON.stringify(data.user));
+                    sessionStorage.setItem('adminLoginTime', new Date().toISOString());
+                    navigate('/admin/dashboard');
+                } else {
+                    // Handle application-level errors (e.g., wrong password)
+                    setError(data.message || 'Invalid username or password');
+                    setCredentials({ username: '', password: '' });
+                }
+            })
+            .catch(err => {
+                // Handle network errors or non-JSON responses
+                console.error('Login fetch error:', err);
+                setError(err.message || 'Network error. Please check the server and try again.');
+            })
+            .finally(() => {
+                setLoading(false);
             });
-
-            const data = await response.json();
-
-            if (response.ok && data.success) {
-                // Set admin session (as backup to HTTP-only cookie)
-                sessionStorage.setItem('adminLoggedIn', 'true');
-                sessionStorage.setItem('adminUser', JSON.stringify(data.user));
-                sessionStorage.setItem('adminLoginTime', new Date().toISOString());
-                navigate('/admin/dashboard');
-            } else {
-                setError(data.message || 'Invalid username or password');
-                setCredentials({ username: '', password: '' });
-            }
         } catch (err) {
-            console.error('Login error:', err);
-            setError('Network error. Please ensure the server is running and try again.');
-        } finally {
+            // This outer catch is for synchronous errors before the fetch
+            console.error('Login setup error:', err);
+            setError('An unexpected error occurred. Please try again.');
             setLoading(false);
         }
     };
