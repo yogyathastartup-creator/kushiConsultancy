@@ -19,7 +19,7 @@
     "NODE_ENV": "production",
     "JWT_SECRET": "ee1a0136aadf3632f4728fe92c73e3ce9db2be253540d315cf8e050b615c3883821cdf561e4364855212d35bbf96ac5352ac70b51785dcdeac67f4ac263a10ed",
     "JWT_REFRESH_SECRET": "ee1a0136aadf3632f4728fe92c73e3ce9db2be253540d315cf8e050b615c3883821cdf561e4364855212d35bbf96ac5352ac70b51785dcdeac67f4ac263a10ed",
-    "SESSION_SECRET": "replace_with_session_secret_minimum_32_characters_long_abc789",
+    "SESSION_SECRET": "e7ad085fefaa694c44eafd29dece3f278309fd065568219069df522fcc9510f5",
     "ADMIN_USERNAME": "admin",
     "ADMIN_PASSWORD": "***REMOVED***",
     "EMAIL_USER": "***REMOVED***",
