@@ -33,30 +33,30 @@ app.use(helmet({
   xssFilter: true
 }));
 
-// CSP nonce middleware
-app.use((req, res, next) => {
-  try {
-    const nonce = crypto.randomBytes(16).toString('base64');
-    res.locals.cspNonce = nonce;
+// CSP nonce middleware - TEMPORARILY DISABLED FOR DEBUGGING
+// app.use((req, res, next) => {
+//   try {
+//     const nonce = crypto.randomBytes(16).toString('base64');
+//     res.locals.cspNonce = nonce;
 
-    const directives = [
-      `default-src 'self'`,
-      `script-src 'self' https://cdn.jsdelivr.net 'nonce-${nonce}'`,
-      `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
-      `font-src 'self' data: https://fonts.gstatic.com`,
-      `img-src 'self' data: https:`,
-      `connect-src 'self' https://api.emailjs.com https://kushiconsultancy.onrender.com`,
-      `frame-ancestors 'none'`,
-      `base-uri 'self'`,
-      `form-action 'self'`
-    ].join('; ');
+//     const directives = [
+//       `default-src 'self'`,
+//       `script-src 'self' https://cdn.jsdelivr.net 'nonce-${nonce}'`,
+//       `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
+//       `font-src 'self' data: https://fonts.gstatic.com`,
+//       `img-src 'self' data: https:`,
+//       `connect-src 'self' https://api.emailjs.com https://kushiconsultancy.onrender.com`,
+//       `frame-ancestors 'none'`,
+//       `base-uri 'self'`,
+//       `form-action 'self'`
+//     ].join('; ');
 
-    res.setHeader('Content-Security-Policy', directives);
-  } catch (e) {
-    logger.warn('Failed to generate CSP nonce', e?.message || e);
-  }
-  next();
-});
+//     res.setHeader('Content-Security-Policy', directives);
+//   } catch (e) {
+//     logger.warn('Failed to generate CSP nonce', e?.message || e);
+//   }
+//   next();
+// });
 
 // Simplified and hardened CORS Configuration for Vercel
 const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',').filter(Boolean);
