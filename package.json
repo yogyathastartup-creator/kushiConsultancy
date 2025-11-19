@@ -14,7 +14,7 @@
     "security:fix": "npm audit fix",
     "security:check": "npm run security:audit && npm run lint",
     "test": "echo \"Tests not yet implemented\" && exit 0",
-    "start:server": "NODE_ENV=production node server/index.js",
+    "start": "NODE_ENV=production node server/index.js",
     "create-admin": "node server/scripts/createAdmin.js"
   },
   "dependencies": {
