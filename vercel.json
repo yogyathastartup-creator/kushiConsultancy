@@ -10,12 +10,17 @@
     { "src": "/(.*\\.(js|css|png|jpg|jpeg|gif|svg|ico|json))", "dest": "/$1" },
     { "src": "/(.*)", "dest": "/index.html" }
   ],
+  "build": {
+    "env": {
+      "VITE_API_URL": "https://kushi-cosultancy.vercel.app/api"
+    }
+  },
   "env": {
     "JWT_SECRET": "ee1a0136aadf3632f4728fe92c73e3ce9db2be253540d315cf8e050b615c3883821cdf561e4364855212d35bbf96ac5352ac70b51785dcdeac67f4ac263a10ed",
     "JWT_REFRESH_SECRET": "ee1a0136aadf3632f4728fe92c73e3ce9db2be253540d315cf8e050b615c3883821cdf561e4364855212d35bbf96ac5352ac70b51785dcdeac67f4ac263a10ed",
     "EMAIL_USER": "***REMOVED***",
     "EMAIL_PASSWORD": "***REMOVED***",
-    "CORS_ORIGINS": "http://localhost:5173,http://localhost:3000,http://localhost:5174,https://kushi-cosultancy.vercel.app",
+    "CORS_ORIGINS": "http://localhost:5173,http://localhost:3000,http://localhost:5174,https://kushi-cosultancy.vercel.app,http://kushi-cosultancy.vercel.app",
     "VITE_API_URL": "https://kushi-cosultancy.vercel.app/api"
   }
 }
