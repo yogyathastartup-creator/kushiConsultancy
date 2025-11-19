@@ -48,19 +48,6 @@ const UploadCV = () => {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location.search, cvUploadEnabled]);
 
-    // Load reCAPTCHA script dynamically if site key configured
-    React.useEffect(() => {
-        const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
-        if (!siteKey) return;
-        if (window.grecaptcha) return; // already loaded
-        const script = document.createElement('script');
-        script.src = `https://www.google.com/recaptcha/api.js?render=${siteKey}`;
-        script.async = true;
-        script.defer = true;
-        document.body.appendChild(script);
-        return () => { document.body.removeChild(script); };
-    }, []);
-
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         const sanitized = sanitizeInput(value);
@@ -141,17 +128,6 @@ const UploadCV = () => {
         setSuccess(false);
 
         try {
-            // Get reCAPTCHA token if configured
-            const siteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
-            let recaptchaToken = null;
-            if (siteKey && window.grecaptcha) {
-                try {
-                    recaptchaToken = await window.grecaptcha.execute(siteKey, { action: 'submit' });
-                } catch (e) {
-                    console.warn('reCAPTCHA execution failed', e);
-                }
-            }
-
             // Create FormData for multipart upload to Express server
             const uploadData = new FormData();
             uploadData.append('cv', file);
@@ -161,13 +137,10 @@ const UploadCV = () => {
             uploadData.append('position', formData.position);
             uploadData.append('experience', formData.experience);
             uploadData.append('location', formData.location);
-            if (recaptchaToken) {
-                uploadData.append('recaptchaToken', recaptchaToken);
-            }
 
             // Upload to Express server endpoint
-            const serverUrl = import.meta.env.VITE_SERVER_URL || 'http://localhost:3001';
-            const response = await fetch(`${serverUrl}/api/upload/cv`, {
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+            const response = await fetch(`${apiUrl}/upload/cv`, {
                 method: 'POST',
                 body: uploadData,
                 // Don't set Content-Type header - browser will set it with boundary for multipart/form-data

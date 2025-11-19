@@ -12,7 +12,6 @@ import { logger } from './utils/logger.js';
 import authRoutes from './routes/auth.js';
 import uploadRoutes from './routes/upload.js';
 import emailRoutes from './routes/email.js';
-import recaptchaRoutes from './routes/recaptcha.js';
 
 dotenv.config();
 
@@ -42,11 +41,11 @@ app.use((req, res, next) => {
 
     const directives = [
       `default-src 'self'`,
-      `script-src 'self' https://cdn.jsdelivr.net https://www.google.com/recaptcha/ 'nonce-${nonce}'`,
+      `script-src 'self' https://cdn.jsdelivr.net`,
       `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com`,
       `font-src 'self' https://fonts.gstatic.com`,
       `img-src 'self' data: https:`,
-      `connect-src 'self' https://api.emailjs.com https://www.google.com/recaptcha/ https://www.gstatic.com/recaptcha/`,
+      `connect-src 'self' https://api.emailjs.com`,
       `frame-ancestors 'none'`,
       `base-uri 'self'`,
       `form-action 'self'`
@@ -59,21 +58,22 @@ app.use((req, res, next) => {
   next();
 });
 
-// CORS Configuration
+// Updated CORS Configuration to support multiple origins
 const allowedOrigins = [
   'http://localhost:5173',
   'http://localhost:3000',
   'http://localhost:5174',
-  process.env.CORS_ORIGIN
+  ...process.env.CORS_ORIGINS?.split(',') || []
 ].filter(Boolean);
 
 const corsOptions = {
   origin: function (origin, callback) {
     if (!origin) return callback(null, true);
-    
-    if (allowedOrigins.indexOf(origin) !== -1) {
+
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      logger.warn(`CORS blocked origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -123,7 +123,6 @@ app.get('/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/email', emailRoutes);
-app.use('/api/recaptcha', recaptchaRoutes);
 
 // Error Handling Middleware
 app.use((err, req, res, next) => {
@@ -163,4 +162,4 @@ function shutdown() {
 }
 
 process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown); 
+process.on('SIGINT', shutdown);
