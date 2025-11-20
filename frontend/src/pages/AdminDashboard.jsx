@@ -15,10 +15,60 @@ const AdminDashboard = () => {
     });
 
     useEffect(() => {
-        // Check if admin is logged in via secure session
+        const loadAllContent = () => {
+            // Load recruitment data
+            const savedRecruitment = localStorage.getItem('recruitmentData');
+            if (savedRecruitment) {
+                const parsed = JSON.parse(savedRecruitment);
+                const migrated = {};
+                for (const category in parsed) {
+                    migrated[category] = parsed[category].map(item => {
+                        if (typeof item === 'string') {
+                            return { title: item, jd: '' };
+                        }
+                        return item;
+                    });
+                }
+                setRecruitmentData(migrated);
+                localStorage.setItem('recruitmentData', JSON.stringify(migrated));
+            } else {
+                setRecruitmentData(getDefaultRecruitmentData());
+            }
+
+            // Load home content
+            const savedHome = localStorage.getItem('homeContent');
+            if (savedHome) {
+                setHomeContent(JSON.parse(savedHome));
+            } else {
+                setHomeContent(getDefaultHomeContent());
+            }
+
+            // Load about content
+            const savedAbout = localStorage.getItem('aboutContent');
+            if (savedAbout) {
+                setAboutContent(JSON.parse(savedAbout));
+            } else {
+                setAboutContent(getDefaultAboutContent());
+            }
+
+            // Load services content
+            const savedServices = localStorage.getItem('servicesContent');
+            if (savedServices) {
+                setServicesContent(JSON.parse(savedServices));
+            } else {
+                setServicesContent(getDefaultServicesContent());
+            }
+
+            // Load settings
+            const savedSettings = localStorage.getItem('siteSettings');
+            if (savedSettings) {
+                setSettings(JSON.parse(savedSettings));
+            }
+        };
+
         const verifyAuth = async () => {
             try {
-                const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/auth/verify`, {
+                const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3002/api'}/auth/verify`, {
                     credentials: 'include'
                 });
                 
@@ -29,11 +79,9 @@ const AdminDashboard = () => {
                     return;
                 }
                 
-                // Load saved data from localStorage
                 loadAllContent();
             } catch (error) {
                 console.error('Auth verification failed:', error);
-                // Fallback to session storage check
                 const isAdminLoggedIn = sessionStorage.getItem('adminLoggedIn');
                 if (!isAdminLoggedIn) {
                     navigate('/admin/login');
@@ -45,60 +93,6 @@ const AdminDashboard = () => {
 
         verifyAuth();
     }, [navigate]);
-
-    const loadAllContent = () => {
-        // Load recruitment data
-        const savedRecruitment = localStorage.getItem('recruitmentData');
-        if (savedRecruitment) {
-            const parsed = JSON.parse(savedRecruitment);
-            // Migrate old string format to new object format
-            const migrated = {};
-            for (const category in parsed) {
-                migrated[category] = parsed[category].map(item => {
-                    if (typeof item === 'string') {
-                        return { title: item, jd: '' };
-                    }
-                    return item;
-                });
-            }
-            setRecruitmentData(migrated);
-            // Save migrated data back to localStorage
-            localStorage.setItem('recruitmentData', JSON.stringify(migrated));
-        } else {
-            // Initialize with default data
-            setRecruitmentData(getDefaultRecruitmentData());
-        }
-
-        // Load home content
-        const savedHome = localStorage.getItem('homeContent');
-        if (savedHome) {
-            setHomeContent(JSON.parse(savedHome));
-        } else {
-            setHomeContent(getDefaultHomeContent());
-        }
-
-        // Load about content
-        const savedAbout = localStorage.getItem('aboutContent');
-        if (savedAbout) {
-            setAboutContent(JSON.parse(savedAbout));
-        } else {
-            setAboutContent(getDefaultAboutContent());
-        }
-
-        // Load services content
-        const savedServices = localStorage.getItem('servicesContent');
-        if (savedServices) {
-            setServicesContent(JSON.parse(savedServices));
-        } else {
-            setServicesContent(getDefaultServicesContent());
-        }
-
-        // Load settings
-        const savedSettings = localStorage.getItem('siteSettings');
-        if (savedSettings) {
-            setSettings(JSON.parse(savedSettings));
-        }
-    };
 
     const getDefaultRecruitmentData = () => {
         return {
@@ -256,7 +250,7 @@ const AdminDashboard = () => {
 
     const handleLogout = async () => {
         try {
-            await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3001/api'}/auth/logout`, {
+            await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3002/api'}/auth/logout`, {
                 method: 'POST',
                 credentials: 'include'
             });
@@ -408,8 +402,9 @@ const AdminDashboard = () => {
             <div className="editor-section">
                 <h4>🎯 Hero Section</h4>
                 <div className="form-group">
-                    <label>Title:</label>
+                    <label htmlFor="hero-title">Title:</label>
                     <input 
+                        id="hero-title"
                         type="text" 
                         value={homeContent.hero?.title || ''} 
                         onChange={(e) => setHomeContent({
@@ -420,8 +415,9 @@ const AdminDashboard = () => {
                     />
                 </div>
                 <div className="form-group">
-                    <label>Tagline:</label>
+                    <label htmlFor="hero-tagline">Tagline:</label>
                     <input 
+                        id="hero-tagline"
                         type="text" 
                         value={homeContent.hero?.tagline || ''} 
                         onChange={(e) => setHomeContent({
@@ -432,8 +428,9 @@ const AdminDashboard = () => {
                     />
                 </div>
                 <div className="form-group">
-                    <label>Description:</label>
+                    <label htmlFor="hero-description">Description:</label>
                     <textarea 
+                        id="hero-description"
                         value={homeContent.hero?.description || ''} 
                         onChange={(e) => setHomeContent({
                             ...homeContent, 
@@ -452,8 +449,9 @@ const AdminDashboard = () => {
                     <div key={index} className="stat-editor">
                         <div className="form-row">
                             <div className="form-group">
-                                <label>Value:</label>
+                                <label htmlFor={`stat-value-${index}`}>Value:</label>
                                 <input 
+                                    id={`stat-value-${index}`}
                                     type="text" 
                                     value={stat.value || ''} 
                                     onChange={(e) => {
@@ -465,8 +463,9 @@ const AdminDashboard = () => {
                                 />
                             </div>
                             <div className="form-group">
-                                <label>Label:</label>
+                                <label htmlFor={`stat-label-${index}`}>Label:</label>
                                 <input 
+                                    id={`stat-label-${index}`}
                                     type="text" 
                                     value={stat.label || ''} 
                                     onChange={(e) => {
@@ -489,8 +488,9 @@ const AdminDashboard = () => {
                     <div key={index} className="highlight-editor">
                         <div className="form-row">
                             <div className="form-group small">
-                                <label>Icon:</label>
+                                <label htmlFor={`highlight-icon-${index}`}>Icon:</label>
                                 <input 
+                                    id={`highlight-icon-${index}`}
                                     type="text" 
                                     value={highlight.icon || ''} 
                                     onChange={(e) => {
@@ -502,8 +502,9 @@ const AdminDashboard = () => {
                                 />
                             </div>
                             <div className="form-group">
-                                <label>Title:</label>
+                                <label htmlFor={`highlight-title-${index}`}>Title:</label>
                                 <input 
+                                    id={`highlight-title-${index}`}
                                     type="text" 
                                     value={highlight.title || ''} 
                                     onChange={(e) => {
@@ -516,8 +517,9 @@ const AdminDashboard = () => {
                             </div>
                         </div>
                         <div className="form-group">
-                            <label>Description:</label>
+                            <label htmlFor={`highlight-description-${index}`}>Description:</label>
                             <textarea 
+                                id={`highlight-description-${index}`}
                                 value={highlight.description || ''} 
                                 onChange={(e) => {
                                     const updated = [...homeContent.highlights];
@@ -552,8 +554,9 @@ const AdminDashboard = () => {
             <div className="editor-section">
                 <h4>ℹ️ Introduction Section</h4>
                 <div className="form-group">
-                    <label>Title:</label>
+                    <label htmlFor="about-intro-title">Title:</label>
                     <input 
+                        id="about-intro-title"
                         type="text" 
                         value={aboutContent.intro?.title || ''} 
                         onChange={(e) => setAboutContent({
@@ -564,8 +567,9 @@ const AdminDashboard = () => {
                     />
                 </div>
                 <div className="form-group">
-                    <label>Tagline:</label>
+                    <label htmlFor="about-intro-tagline">Tagline:</label>
                     <input 
+                        id="about-intro-tagline"
                         type="text" 
                         value={aboutContent.intro?.tagline || ''} 
                         onChange={(e) => setAboutContent({
@@ -576,8 +580,9 @@ const AdminDashboard = () => {
                     />
                 </div>
                 <div className="form-group">
-                    <label>Description:</label>
+                    <label htmlFor="about-intro-description">Description:</label>
                     <textarea 
+                        id="about-intro-description"
                         value={aboutContent.intro?.description || ''} 
                         onChange={(e) => setAboutContent({
                             ...aboutContent, 
@@ -667,8 +672,9 @@ const AdminDashboard = () => {
             <div className="editor-section">
                 <h4>🌱 Corporate Social Responsibilities</h4>
                 <div className="form-group">
-                    <label>Description:</label>
+                    <label htmlFor="csr-description">Description:</label>
                     <textarea 
+                        id="csr-description"
                         value={aboutContent.csr?.description || ''} 
                         onChange={(e) => setAboutContent({
                             ...aboutContent, 
@@ -744,8 +750,9 @@ const AdminDashboard = () => {
             <div className="editor-section">
                 <h4>📋 Page Introduction</h4>
                 <div className="form-group">
-                    <label>Title:</label>
+                    <label htmlFor="services-page-title">Title:</label>
                     <input 
+                        id="services-page-title"
                         type="text" 
                         value={servicesContent.intro?.title || ''} 
                         onChange={(e) => setServicesContent({
@@ -756,8 +763,9 @@ const AdminDashboard = () => {
                     />
                 </div>
                 <div className="form-group">
-                    <label>Description:</label>
+                    <label htmlFor="services-intro-description">Description:</label>
                     <textarea 
+                        id="services-intro-description"
                         value={servicesContent.intro?.description || ''} 
                         onChange={(e) => setServicesContent({
                             ...servicesContent, 
@@ -788,8 +796,9 @@ const AdminDashboard = () => {
                         </div>
                         
                         <div className="form-group">
-                            <label>Service Title:</label>
+                            <label htmlFor={`service-item-title-${index}`}>Service Title:</label>
                             <input 
+                                id={`service-item-title-${index}`}
                                 type="text" 
                                 value={service.title || ''} 
                                 onChange={(e) => {
@@ -802,8 +811,9 @@ const AdminDashboard = () => {
                         </div>
                         
                         <div className="form-group">
-                            <label>Service Description:</label>
+                            <label htmlFor={`service-item-desc-${index}`}>Service Description:</label>
                             <textarea 
+                                id={`service-item-desc-${index}`}
                                 value={service.description || ''} 
                                 onChange={(e) => {
                                     const updated = [...servicesContent.services];
@@ -875,8 +885,9 @@ const AdminDashboard = () => {
             <div className="editor-section">
                 <h4>📢 Call-to-Action Section</h4>
                 <div className="form-group">
-                    <label>CTA Title:</label>
+                    <label htmlFor="services-cta-title">CTA Title:</label>
                     <input 
+                        id="services-cta-title"
                         type="text" 
                         value={servicesContent.cta?.title || ''} 
                         onChange={(e) => setServicesContent({
@@ -887,8 +898,9 @@ const AdminDashboard = () => {
                     />
                 </div>
                 <div className="form-group">
-                    <label>CTA Description:</label>
+                    <label htmlFor="services-cta-description">CTA Description:</label>
                     <input 
+                        id="services-cta-description"
                         type="text" 
                         value={servicesContent.cta?.description || ''} 
                         onChange={(e) => setServicesContent({
@@ -899,8 +911,9 @@ const AdminDashboard = () => {
                     />
                 </div>
                 <div className="form-group">
-                    <label>Contact Email:</label>
+                    <label htmlFor="services-contact-email">Contact Email:</label>
                     <input 
+                        id="services-contact-email"
                         type="email" 
                         value={servicesContent.cta?.email || ''} 
                         onChange={(e) => setServicesContent({

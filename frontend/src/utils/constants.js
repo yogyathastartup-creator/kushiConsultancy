@@ -2,7 +2,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || (
   import.meta.env.PROD 
     ? '/api' // Production: same domain
-    : 'http://localhost:3001/api' // Development: separate server
+    : 'http://localhost:3002/api' // Development: separate server
 );
 
 export const API_ENDPOINTS = {

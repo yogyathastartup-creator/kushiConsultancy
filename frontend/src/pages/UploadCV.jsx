@@ -3,6 +3,8 @@ import { useLocation } from 'react-router-dom';
 import { validateFile, validateEmail, validatePhone, validateTextInput, sanitizeInput } from '../utils/validation';
 import '../styles/UploadCV.css';
 
+/* global URLSearchParams, FormData, fetch */
+
 const UploadCV = () => {
     const contactEmail = import.meta.env.VITE_CONTACT_EMAIL || 'yogyatha.startup@gmail.com';
     const [formData, setFormData] = useState({
@@ -46,7 +48,6 @@ const UploadCV = () => {
                 setUploadMethod('form');
             }
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [location.search, cvUploadEnabled]);
 
     const handleInputChange = (e) => {
@@ -159,14 +160,29 @@ const UploadCV = () => {
             uploadData.append('location', sanitizedFormData.location);
 
             // Upload to Express server endpoint
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002/api';
+            console.log('Uploading to:', `${apiUrl}/upload/cv`);
+            
             const response = await fetch(`${apiUrl}/upload/cv`, {
                 method: 'POST',
                 body: uploadData,
                 // Don't set Content-Type header - browser will set it with boundary for multipart/form-data
             });
 
-            const result = await response.json();
+            console.log('Response status:', response.status);
+            const contentType = response.headers.get('Content-Type');
+            console.log('Response Content-Type:', contentType);
+            
+            let result;
+            if (contentType && contentType.includes('application/json')) {
+                result = await response.json();
+            } else {
+                const text = await response.text();
+                console.error('Non-JSON response:', text);
+                throw new Error('Server returned invalid response');
+            }
+
+            console.log('Upload result:', result);
 
             if (response.ok && result.success) {
                 setSuccess(true);
@@ -230,8 +246,9 @@ const UploadCV = () => {
                     <form onSubmit={handleSubmit} className="cv-upload-form">
                         <div className="form-row">
                             <div className="form-group">
-                                <label>Full Name <span className="required">*</span></label>
+                                <label htmlFor="name">Full Name <span className="required">*</span></label>
                                 <input
+                                    id="name"
                                     type="text"
                                     name="name"
                                     value={formData.name}
@@ -245,8 +262,9 @@ const UploadCV = () => {
                             </div>
 
                             <div className="form-group">
-                                <label>Email Address <span className="required">*</span></label>
+                                <label htmlFor="email">Email Address <span className="required">*</span></label>
                                 <input
+                                    id="email"
                                     type="email"
                                     name="email"
                                     value={formData.email}
@@ -262,8 +280,9 @@ const UploadCV = () => {
 
                         <div className="form-row">
                             <div className="form-group">
-                                <label>Contact Number <span className="required">*</span></label>
+                                <label htmlFor="phone">Contact Number <span className="required">*</span></label>
                                 <input
+                                    id="phone"
                                     type="tel"
                                     name="phone"
                                     value={formData.phone}
@@ -277,8 +296,9 @@ const UploadCV = () => {
                             </div>
 
                             <div className="form-group">
-                                <label>Position Applied For <span className="required">*</span></label>
+                                <label htmlFor="position">Position Applied For <span className="required">*</span></label>
                                 <input
+                                    id="position"
                                     type="text"
                                     name="position"
                                     value={formData.position}
@@ -294,8 +314,9 @@ const UploadCV = () => {
 
                         <div className="form-row">
                             <div className="form-group">
-                                <label>Years of Experience <span className="required">*</span></label>
+                                <label htmlFor="experience">Years of Experience <span className="required">*</span></label>
                                 <input
+                                    id="experience"
                                     type="text"
                                     name="experience"
                                     value={formData.experience}
@@ -309,8 +330,9 @@ const UploadCV = () => {
                             </div>
 
                             <div className="form-group">
-                                <label>Current Location <span className="required">*</span></label>
+                                <label htmlFor="location">Current Location <span className="required">*</span></label>
                                 <input
+                                    id="location"
                                     type="text"
                                     name="location"
                                     value={formData.location}
@@ -325,7 +347,7 @@ const UploadCV = () => {
                         </div>
 
                         <div className="form-group file-upload-group">
-                            <label>Upload Resume/CV <span className="required">*</span></label>
+                            <label htmlFor="cv-file-input">Upload Resume/CV <span className="required">*</span></label>
                             <input
                                 type="file"
                                 id="cv-file-input"

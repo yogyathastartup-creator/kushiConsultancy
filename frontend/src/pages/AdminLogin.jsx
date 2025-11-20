@@ -41,7 +41,7 @@ const AdminLogin = () => {
         }
 
         try {
-            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002/api';
             const response = await fetch(`${API_URL}/auth/login`, {
                 method: 'POST',
                 headers: {
@@ -96,8 +96,9 @@ const AdminLogin = () => {
 
                 <form onSubmit={handleSubmit} className="admin-login-form">
                     <div className="form-group">
-                        <label>Username</label>
+                        <label htmlFor="username">Username</label>
                         <input
+                            id="username"
                             type="text"
                             name="username"
                             placeholder="Enter admin username"
@@ -111,8 +112,9 @@ const AdminLogin = () => {
                     </div>
 
                     <div className="form-group">
-                        <label>Password</label>
+                        <label htmlFor="password">Password</label>
                         <input
+                            id="password"
                             type="password"
                             name="password"
                             placeholder="Enter admin password"
