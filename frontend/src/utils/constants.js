@@ -1,7 +1,14 @@
+// API Base URL - automatically detects environment
+const API_BASE_URL = import.meta.env.VITE_API_URL || (
+  import.meta.env.PROD 
+    ? '/api' // Production: same domain
+    : 'http://localhost:3001/api' // Development: separate server
+);
+
 export const API_ENDPOINTS = {
-  LOGIN: '/api/login',
-  REGISTER: '/api/register',
-  UPLOAD_CV: '/api/upload-cv',
+  LOGIN: `${API_BASE_URL}/auth/login`,
+  UPLOAD_CV: `${API_BASE_URL}/upload/cv`,
+  SEND_EMAIL: `${API_BASE_URL}/email/send`,
 };
 
 export const SERVICES = [
