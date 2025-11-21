@@ -21,8 +21,18 @@ public class JwtUtil {
     private final Key refreshKey;
 
     public JwtUtil(String accessSecret, String refreshSecret) {
-        this.accessKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(accessSecret));
-        this.refreshKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(refreshSecret));
+        byte[] accessBytes = Decoders.BASE64.decode(accessSecret);
+        byte[] refreshBytes = Decoders.BASE64.decode(refreshSecret);
+
+        if (accessBytes.length < 32) {
+            throw new IllegalArgumentException("JWT_ACCESS_SECRET too weak (" + (accessBytes.length * 8) + " bits). Provide >= 256-bit Base64 string.");
+        }
+        if (refreshBytes.length < 32) {
+            throw new IllegalArgumentException("JWT_REFRESH_SECRET too weak (" + (refreshBytes.length * 8) + " bits). Provide >= 256-bit Base64 string.");
+        }
+
+        this.accessKey = Keys.hmacShaKeyFor(accessBytes);
+        this.refreshKey = Keys.hmacShaKeyFor(refreshBytes);
     }
 
     /**
