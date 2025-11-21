@@ -1,14 +1,16 @@
 package com.kushi.consultancy.security;
 
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.SignatureAlgorithm;
-import io.jsonwebtoken.io.Decoders;
-import io.jsonwebtoken.security.Keys;
-
 import java.security.Key;
 import java.time.Instant;
 import java.util.Date;
 import java.util.Map;
+
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.io.Decoders;
+import io.jsonwebtoken.security.Keys;
 
 /**
  * Utility class for generating and validating JWT tokens.
@@ -47,5 +49,27 @@ public class JwtUtil {
                 .setExpiration(Date.from(Instant.now().plusSeconds(604800)))
                 .signWith(refreshKey, SignatureAlgorithm.HS256)
                 .compact();
+    }
+
+    /**
+     * Validate access token and return claims or null if invalid.
+     */
+    public Claims validateAccessToken(String token) {
+        return parse(token, accessKey);
+    }
+
+    /**
+     * Validate refresh token and return claims or null if invalid.
+     */
+    public Claims validateRefreshToken(String token) {
+        return parse(token, refreshKey);
+    }
+
+    private Claims parse(String token, Key key) {
+        try {
+            return Jwts.parserBuilder().setSigningKey(key).build().parseClaimsJws(token).getBody();
+        } catch (JwtException | IllegalArgumentException e) {
+            return null;
+        }
     }
 }

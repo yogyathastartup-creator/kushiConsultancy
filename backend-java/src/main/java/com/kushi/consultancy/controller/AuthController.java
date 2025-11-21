@@ -1,17 +1,25 @@
 package com.kushi.consultancy.controller;
 
-import com.kushi.consultancy.security.JwtUtil;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.validation.constraints.NotBlank;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CookieValue;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import com.kushi.consultancy.security.JwtUtil;
+
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.constraints.NotBlank;
 
 /**
  * REST controller for authentication endpoints.
@@ -43,6 +51,7 @@ public class AuthController {
      * Login request record.
      */
     public record LoginRequest(@NotBlank String username, @NotBlank String password) {}
+    public record RefreshRequest(String refreshToken) {}
 
     private record FailedAttempts(int count, long lastAttemptTime) {}
 
@@ -114,40 +123,69 @@ public class AuthController {
     @PostMapping("/refresh")
     public ResponseEntity<?> refresh(
             HttpServletResponse response,
-            @CookieValue(value = "refreshToken", required = false) String refreshToken) {
-        
-        if (refreshToken == null || refreshToken.isBlank()) {
+            @CookieValue(value = "refreshToken", required = false) String refreshTokenCookie,
+            @RequestHeader(value = "Authorization", required = false) String authHeader,
+            @RequestBody(required = false) RefreshRequest body) {
+
+        String supplied = null;
+        if (refreshTokenCookie != null && !refreshTokenCookie.isBlank()) {
+            supplied = refreshTokenCookie;
+        } else if (body != null && body.refreshToken() != null && !body.refreshToken().isBlank()) {
+            supplied = body.refreshToken();
+        } else if (authHeader != null && authHeader.toLowerCase().startsWith("bearer ")) {
+            supplied = authHeader.substring(7).trim();
+        }
+
+        if (supplied == null || supplied.isBlank()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
                 "error", "No refresh token provided"
             ));
         }
 
-        // In production, validate the refresh token signature and expiration
-        String newAccessToken = jwtUtil.generateAccessToken("admin");
+        var claims = jwtUtil.validateRefreshToken(supplied);
+        if (claims == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                "error", "Invalid or expired refresh token"
+            ));
+        }
+
+        String username = claims.getSubject();
+        String newAccessToken = jwtUtil.generateAccessToken(username);
         response.addCookie(createCookie("accessToken", newAccessToken, 3600));
 
         return ResponseEntity.ok(Map.of(
             "success", true,
-            "message", "Token refreshed"
+            "message", "Token refreshed",
+            "user", Map.of(
+                "username", username,
+                "role", claims.get("role", String.class)
+            )
         ));
     }
 
     @GetMapping("/verify")
     public ResponseEntity<?> verify(
             @CookieValue(value = "accessToken", required = false) String accessToken) {
-        
+
         if (accessToken == null || accessToken.isBlank()) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
                 "authenticated", false
             ));
         }
 
-        // In production, validate the access token signature and expiration
+        var claims = jwtUtil.validateAccessToken(accessToken);
+        if (claims == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of(
+                "authenticated", false,
+                "error", "Invalid or expired access token"
+            ));
+        }
+
         return ResponseEntity.ok(Map.of(
             "authenticated", true,
             "user", Map.of(
-                "username", "admin",
-                "role", "admin"
+                "username", claims.getSubject(),
+                "role", claims.get("role", String.class)
             )
         ));
     }
@@ -155,7 +193,8 @@ public class AuthController {
     private Cookie createCookie(String name, String value, int maxAgeSeconds) {
         Cookie cookie = new Cookie(name, value);
         cookie.setHttpOnly(true);
-        cookie.setSecure(false); // Set to true in production with HTTPS
+        boolean secure = false; // could derive from environment later
+        cookie.setSecure(secure); // Set to true in production with HTTPS
         cookie.setPath("/");
         cookie.setMaxAge(maxAgeSeconds);
         cookie.setAttribute("SameSite", "Strict");
