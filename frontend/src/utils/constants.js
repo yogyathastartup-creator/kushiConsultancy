@@ -4,7 +4,7 @@ const API_BASE_URL = getApiUrl();
 
 export const API_ENDPOINTS = {
   LOGIN: `${API_BASE_URL}/auth/login`,
-  UPLOAD_CV: `${API_BASE_URL}/upload/cv`,
+  UPLOAD_CV: `${API_BASE_URL}/api/upload/cv`,
   SEND_EMAIL: `${API_BASE_URL}/email/send`,
 };
 
