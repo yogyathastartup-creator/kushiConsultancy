@@ -1,0 +1,10 @@
+# Ignore local build and VCS artifacts
+backend-java/target
+frontend/node_modules
+frontend/dist
+.git
+.gitignore
+.env
+.env.*
+Dockerfile*
+**/*.md

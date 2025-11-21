@@ -41,6 +41,15 @@ public class AuthController {
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final long LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 minutes
 
+    @Value("${cookie.secure:true}")
+    private boolean cookieSecure;
+
+    @Value("${cookie.samesite:None}")
+    private String cookieSameSite;
+
+    @Value("${cookie.domain:}")
+    private String cookieDomain;
+
     public AuthController(
             @Value("${app.jwt.access-secret}") String accessSecret,
             @Value("${app.jwt.refresh-secret}") String refreshSecret) {
@@ -193,11 +202,13 @@ public class AuthController {
     private Cookie createCookie(String name, String value, int maxAgeSeconds) {
         Cookie cookie = new Cookie(name, value);
         cookie.setHttpOnly(true);
-        boolean secure = false; // could derive from environment later
-        cookie.setSecure(secure); // Set to true in production with HTTPS
+        cookie.setSecure(cookieSecure);
+        if (!cookieDomain.isBlank()) {
+            cookie.setDomain(cookieDomain);
+        }
         cookie.setPath("/");
         cookie.setMaxAge(maxAgeSeconds);
-        cookie.setAttribute("SameSite", "Strict");
+        cookie.setAttribute("SameSite", cookieSameSite);
         return cookie;
     }
 }
