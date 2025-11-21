@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getApiUrl, logApiResolution } from '../utils/api';
 import { useLocation } from 'react-router-dom';
 import { validateFile, validateEmail, validatePhone, validateTextInput, sanitizeInput } from '../utils/validation';
 import '../styles/UploadCV.css';
@@ -33,6 +34,11 @@ const UploadCV = () => {
                 setUploadMethod('email');
             }
         }
+    }, []);
+
+    // Log resolved API base once on mount
+    React.useEffect(() => {
+        logApiResolution('UploadCV');
     }, []);
 
     // Prefill position if provided via query string (e.g., /upload-cv?position=Civil%20Engineer)
@@ -160,7 +166,7 @@ const UploadCV = () => {
             uploadData.append('location', sanitizedFormData.location);
 
             // Upload to Express server endpoint
-            const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3002/api';
+            const apiUrl = getApiUrl();
             console.log('Uploading to:', `${apiUrl}/upload/cv`);
             
             const response = await fetch(`${apiUrl}/upload/cv`, {

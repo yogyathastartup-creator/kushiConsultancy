@@ -1,31 +1,17 @@
-# Use Maven image to build
-FROM maven:3.9-eclipse-temurin-21 AS build
+# Node.js backend Dockerfile for Render
+FROM node:20-alpine
+
 WORKDIR /app
 
-# Copy pom.xml and download dependencies
-COPY backend-java/pom.xml .
-RUN mvn dependency:go-offline
+# Install dependencies
+COPY backend/package.json backend/package-lock.json ./
+RUN npm install --production
 
-# Copy source code and build
-COPY backend-java/src ./src
-RUN mvn -q clean package -DskipTests
+# Copy source code
+COPY backend ./
 
-# Use JRE for runtime
-FROM eclipse-temurin:21-jre-alpine
-WORKDIR /app
+# Expose port (change if your server uses a different port)
+EXPOSE 3001
 
-# Copy jar from build stage
-COPY --from=build /app/target/*.jar app.jar
-
-# Create non-root user for security
-RUN addgroup -S spring && adduser -S spring -G spring
-USER spring
-
-# Java runtime tuning (container aware)
-ENV JAVA_OPTS="-XX:MaxRAMPercentage=75 -XX:+UseContainerSupport -XX:+UseG1GC"
-
-# Expose port
-EXPOSE 8080
-
-# Run the application
-ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
+# Start the server
+CMD ["node", "index.js"]

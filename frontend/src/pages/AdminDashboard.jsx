@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getApiUrl, logApiResolution } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 import '../styles/AdminDashboard.css';
 
@@ -68,7 +69,7 @@ const AdminDashboard = () => {
 
         const verifyAuth = async () => {
             try {
-                const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3002/api'}/auth/verify`, {
+                const response = await fetch(`${getApiUrl()}/auth/verify`, {
                     credentials: 'include'
                 });
                 
@@ -91,6 +92,7 @@ const AdminDashboard = () => {
             }
         };
 
+        logApiResolution('AdminDashboard');
         verifyAuth();
     }, [navigate]);
 
@@ -250,7 +252,7 @@ const AdminDashboard = () => {
 
     const handleLogout = async () => {
         try {
-            await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:3002/api'}/auth/logout`, {
+            await fetch(`${getApiUrl()}/auth/logout`, {
                 method: 'POST',
                 credentials: 'include'
             });

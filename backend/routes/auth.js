@@ -132,24 +132,29 @@ router.post('/login', authLimiter, loginValidation, async (req, res) => {
     securityLogger.logAuthAttempt(username, true, ip);
 
     // Generate JWT tokens
+    // Support both legacy JWT_SECRET and new JWT_ACCESS_SECRET naming
+    const accessSecret = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET;
+    const refreshSecret = process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET_LEGACY;
+
     const accessToken = jwt.sign(
       { username, role: 'admin' },
-      process.env.JWT_SECRET,
+      accessSecret,
       { expiresIn: '1h' }
     );
 
     const refreshToken = jwt.sign(
       { username, role: 'admin' },
-      process.env.JWT_REFRESH_SECRET,
+      refreshSecret,
       { expiresIn: '7d' }
     );
 
     // Set secure HTTP-only cookies
     const cookieOptions = {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+      secure: process.env.NODE_ENV === 'production',
+      // For cross-site frontend (Vercel) + backend (Render) we need SameSite=None
+      sameSite: 'none',
+      maxAge: 7 * 24 * 60 * 60 * 1000
     };
 
     res.cookie('accessToken', accessToken, { ...cookieOptions, maxAge: 60 * 60 * 1000 }); // 1 hour
@@ -183,17 +188,19 @@ router.post('/logout', (req, res) => {
 // POST /api/auth/refresh - Refresh access token
 router.post('/refresh', async (req, res) => {
   const refreshToken = req.cookies.refreshToken;
+  const accessSecret = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET;
+  const refreshSecret = process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET_LEGACY;
 
   if (!refreshToken) {
     return res.status(401).json({ error: 'No refresh token provided' });
   }
 
   try {
-    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+    const decoded = jwt.verify(refreshToken, refreshSecret);
     
     const newAccessToken = jwt.sign(
       { username: decoded.username, role: decoded.role },
-      process.env.JWT_SECRET,
+      accessSecret,
       { expiresIn: '1h' }
     );
 
@@ -215,13 +222,14 @@ router.post('/refresh', async (req, res) => {
 // GET /api/auth/verify - Verify if user is authenticated
 router.get('/verify', (req, res) => {
   const accessToken = req.cookies.accessToken;
+  const accessSecret = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET;
 
   if (!accessToken) {
     return res.status(401).json({ authenticated: false });
   }
 
   try {
-    const decoded = jwt.verify(accessToken, process.env.JWT_SECRET);
+    const decoded = jwt.verify(accessToken, accessSecret);
     res.json({
       authenticated: true,
       user: {

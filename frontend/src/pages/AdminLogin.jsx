@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { sanitizeInput, validateUsername, validatePassword } from '../utils/validation';
+import { getApiUrl, logApiResolution } from '../utils/api';
 import '../styles/AdminLogin.css';
 
 const AdminLogin = () => {
@@ -11,6 +12,10 @@ const AdminLogin = () => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
+
+    useEffect(() => {
+        logApiResolution('AdminLogin');
+    }, []);
 
     const handleChange = (e) => {
         const sanitized = sanitizeInput(e.target.value);
@@ -41,8 +46,7 @@ const AdminLogin = () => {
         }
 
         try {
-            const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3002/api';
-            const response = await fetch(`${API_URL}/auth/login`, {
+            const response = await fetch(`${getApiUrl()}/auth/login`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

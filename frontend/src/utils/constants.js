@@ -1,9 +1,6 @@
-// API Base URL - automatically detects environment
-const API_BASE_URL = import.meta.env.VITE_API_URL || (
-  import.meta.env.PROD 
-    ? '/api' // Production: same domain
-    : 'http://localhost:3002/api' // Development: separate server
-);
+import { getApiUrl } from './api';
+// Centralized API Base URL resolution
+const API_BASE_URL = getApiUrl();
 
 export const API_ENDPOINTS = {
   LOGIN: `${API_BASE_URL}/auth/login`,

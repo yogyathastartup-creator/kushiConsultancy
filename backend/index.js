@@ -12,6 +12,7 @@ import { logger } from './utils/logger.js';
 import authRoutes from './routes/auth.js';
 import uploadRoutes from './routes/upload.js';
 import emailRoutes from './routes/email.js';
+import versionRoutes from './routes/version.js';
 
 dotenv.config();
 
@@ -143,6 +144,12 @@ app.get('/', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/email', emailRoutes);
+app.use('/api/version', versionRoutes);
+
+// Unified health endpoint under /api as in Java backend
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'OK', timestamp: new Date().toISOString() });
+});
 
 // Keep the existing /health route for consistency if needed
 app.get('/health', (req, res) => {
@@ -170,7 +177,7 @@ app.use((err, req, res, next) => {
 
 // 404 Handler
 app.use((req, res) => {
-  res.status(404).json({ error: 'Not found' });
+  res.status(404).json({ success: false, error: 'Not Found', message: 'Resource not found' });
 });
 
 // Start server

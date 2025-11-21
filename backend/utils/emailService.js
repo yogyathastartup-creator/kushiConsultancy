@@ -1,31 +1,27 @@
 import nodemailer from 'nodemailer';
 import { logger } from './logger.js';
 
-// Create reusable transporter
+// Create reusable transporter supporting both Java-style and legacy env vars
 const createTransporter = () => {
-    // If custom SMTP is configured, use it; otherwise fall back to Gmail service
-    // Custom SMTP is recommended for domain mailboxes (e.g., GoDaddy, Zoho, Office 365)
-    if (process.env.EMAIL_HOST) {
-        const port = parseInt(process.env.EMAIL_PORT || '587', 10);
-        const secure = process.env.EMAIL_SECURE === 'true' || port === 465;
+    const host = process.env.SMTP_HOST || process.env.EMAIL_HOST;
+    const portRaw = process.env.SMTP_PORT || process.env.EMAIL_PORT || '587';
+    const port = parseInt(portRaw, 10);
+    const secure = (process.env.SMTP_SECURE === 'true' || process.env.EMAIL_SECURE === 'true' || port === 465);
+    const user = process.env.SMTP_USERNAME || process.env.EMAIL_USER;
+    const pass = (process.env.SMTP_PASSWORD || process.env.EMAIL_PASSWORD || '').replace(/\s+/g, '');
 
+    if (host && user && pass) {
         return nodemailer.createTransport({
-            host: process.env.EMAIL_HOST,
+            host,
             port,
-            secure, // true for 465, false for 587/STARTTLS
-            auth: {
-                user: process.env.EMAIL_USER,
-                pass: (process.env.EMAIL_PASSWORD || '').replace(/\s+/g, ''),
-            },
+            secure,
+            auth: { user, pass }
         });
     }
 
-    // Gmail fallback (requires App Password with 2FA enabled)
-    const user = process.env.EMAIL_USER;
-    const pass = (process.env.EMAIL_PASSWORD || '').replace(/\s+/g, '');
-
+    // Gmail fallback
     if (!user || !pass) {
-        const msg = 'EMAIL_USER and EMAIL_PASSWORD must be set to send emails. Configure SMTP or Gmail app password in environment variables.';
+        const msg = 'SMTP/EMAIL credentials missing: set SMTP_HOST & SMTP_USERNAME/SMTP_PASSWORD or EMAIL_USER & EMAIL_PASSWORD.';
         logger.error(msg);
         throw new Error(msg);
     }
@@ -202,10 +198,9 @@ export const sendCVUploadNotification = async (applicantData, filePath, original
         const mailOptions = {
             from: {
                 name: 'Kushi Consultancy Portal',
-                address: process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@kushiconsultancy.com',
+                address: process.env.MAIL_FROM_ADDRESS || process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@kushiconsultancy.com',
             },
-            // support comma-separated recipients if provided
-            to: process.env.EMAIL_TO || process.env.EMAIL_USER,
+            to: process.env.MAIL_TO_ADDRESS || process.env.EMAIL_TO || process.env.EMAIL_USER,
             subject: `New CV Submission: ${applicantData.name} - ${applicantData.position}`,
             html: emailTemplate,
             attachments: [
@@ -242,7 +237,7 @@ export const sendCVUploadNotification = async (applicantData, filePath, original
 export const sendTestEmail = async () => {
     try {
         const transporter = createTransporter();
-        const to = process.env.EMAIL_TO || process.env.EMAIL_USER;
+        const to = process.env.MAIL_TO_ADDRESS || process.env.EMAIL_TO || process.env.EMAIL_USER;
         if (!to) {
             const msg = 'No recipient configured for test email. Set EMAIL_TO or EMAIL_USER.';
             logger.error(msg);
@@ -254,9 +249,9 @@ export const sendTestEmail = async () => {
                 <h2>SMTP Test Email ✅</h2>
                 <p>This is a test email from the Kushi Consultancy server to verify your SMTP settings.</p>
                 <ul>
-                    <li><strong>Host</strong>: ${process.env.EMAIL_HOST || 'gmail (service)'}</li>
-                    <li><strong>Port</strong>: ${process.env.EMAIL_PORT || 'default'}</li>
-                    <li><strong>Secure</strong>: ${process.env.EMAIL_SECURE || 'auto'}</li>
+                    <li><strong>Host</strong>: ${process.env.SMTP_HOST || process.env.EMAIL_HOST || 'gmail (service)'}</li>
+                    <li><strong>Port</strong>: ${process.env.SMTP_PORT || process.env.EMAIL_PORT || 'default'}</li>
+                    <li><strong>Secure</strong>: ${(process.env.SMTP_SECURE || process.env.EMAIL_SECURE || 'auto')}</li>
                     <li><strong>Environment</strong>: ${process.env.NODE_ENV || 'development'}</li>
                 </ul>
                 <p style="color:#555;font-size:12px">Timestamp: ${new Date().toISOString()}</p>
@@ -265,7 +260,7 @@ export const sendTestEmail = async () => {
         const mailOptions = {
             from: {
                 name: 'Kushi Consultancy Portal',
-                address: process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@kushiconsultancy.com',
+                address: process.env.MAIL_FROM_ADDRESS || process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@kushiconsultancy.com',
             },
             to,
             subject: 'Kushi Consultancy | SMTP test email',
