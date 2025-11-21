@@ -1,5 +1,7 @@
 package com.kushi.consultancy.exception;
 
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -8,8 +10,7 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartException;
-
-import java.util.Map;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * Global exception handler for all controllers.
@@ -56,6 +57,17 @@ public class GlobalExceptionHandler {
             "success", false,
             "error", "Internal server error",
             "message", "An unexpected error occurred. Please try again later."
+        ));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<?> handleNoResource(NoResourceFoundException ex) {
+        // Log at debug to avoid noisy error logs for missing static assets like favicon.ico
+        logger.debug("Static resource not found: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of(
+            "success", false,
+            "error", "Not Found",
+            "message", "Resource not found"
         ));
     }
 }
