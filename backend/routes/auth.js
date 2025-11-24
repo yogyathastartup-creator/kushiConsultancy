@@ -19,6 +19,8 @@ router.post('/login', loginValidation, async (req, res) => {
   }
 
   const { username, password } = req.body;
+  // Debug: Log received credentials (do not use in production)
+  console.log('Login attempt:', { username, password });
   const adminUsername = process.env.ADMIN_USERNAME || 'admin';
   const adminPassword = process.env.ADMIN_PASSWORD || '***REDACTED***';
 

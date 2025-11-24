@@ -169,6 +169,13 @@ app.use((req, res) => {
 const server = app.listen(PORT, '0.0.0.0', () => {
   logger.info(`🚀 Server running on port ${PORT}`);
   logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
+  // Debug: Log relevant environment variables
+  logger.info(`ADMIN_USERNAME: ${process.env.ADMIN_USERNAME}`);
+  logger.info(`ADMIN_PASSWORD: ${process.env.ADMIN_PASSWORD}`);
+  logger.info(`JWT_SECRET: ${process.env.JWT_SECRET}`);
+  logger.info(`CORS_ORIGINS: ${process.env.CORS_ORIGINS}`);
+  logger.info(`COOKIE_SAMESITE: ${process.env.COOKIE_SAMESITE}`);
+  logger.info(`COOKIE_SECURE: ${process.env.COOKIE_SECURE}`);
 });
 
 server.on('error', (error) => {
