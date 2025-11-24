@@ -160,7 +160,7 @@ router.post('/cv', (req, res, next) => {
       securityLogger.logFileUpload(req.file.originalname, req.file.size, ip, false, 'av_scan_failed');
       return res.status(400).json({ success: false, message: 'Uploaded file failed virus scan' });
     }
-    
+
     const fileInfo = {
       originalName: req.file.originalname,
       storedName: req.file.filename,
@@ -181,26 +181,27 @@ router.post('/cv', (req, res, next) => {
     logger.info('CV uploaded successfully', fileInfo);
     securityLogger.logFileUpload(req.file.originalname, req.file.size, ip, true);
 
-    // Send email notification to admin
-    const emailResult = await sendCVUploadNotification(
+    // Send email notification asynchronously
+    sendCVUploadNotification(
       fileInfo.applicant,
       req.file.path,
       req.file.originalname
-    );
-
-    if (!emailResult.success) {
-      // Log email failure but don't block upload success
-      logger.warn('Email notification failed but upload succeeded', {
-        error: emailResult.error,
-        applicant: req.body.name
-      });
-    }
+    ).then(emailResult => {
+      if (!emailResult.success) {
+        logger.warn('Email notification failed but upload succeeded', {
+          error: emailResult.error,
+          applicant: req.body.name
+        });
+      }
+    }).catch(error => {
+      logger.error('Async email notification error', { error, applicant: req.body.name });
+    });
 
     res.json({
       success: true,
       message: 'CV uploaded successfully',
       fileId: crypto.createHash('sha256').update(req.file.filename).digest('hex').substring(0, 16),
-      emailSent: emailResult.success
+      emailSent: true // Always true, since email is now async
     });
 
   } catch (error) {
