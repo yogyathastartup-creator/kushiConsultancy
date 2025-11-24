@@ -73,7 +73,17 @@ app.use(helmet({
 // CORS Configuration - Must be before body parsers
 // CORS: Allow credentials and correct frontend origin for cookies
 app.use(cors({
-  origin: ['http://localhost:5174','https://inspiring-dolphin-fd2ca1.netlify.app'], // Change to your frontend URL in production
+  origin: function (origin, callback) {
+    const allowedOrigins = [
+      'http://localhost:5174',
+      'https://inspiring-dolphin-fd2ca1.netlify.app'
+    ];
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
