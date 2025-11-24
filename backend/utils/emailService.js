@@ -36,10 +36,11 @@ const createTransporter = () => {
  * Send CV upload notification email
  */
 export const sendCVUploadNotification = async (applicantData, filePath, originalFileName) => {
-  try {
-    const transporter = createTransporter();
+    try {
+        console.log('Attempting to send CV notification email...');
+        const transporter = createTransporter();
     
-    const emailTemplate = `
+        const emailTemplate = `
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -211,24 +212,24 @@ export const sendCVUploadNotification = async (applicantData, filePath, original
             ],
         };
 
-    const info = await transporter.sendMail(mailOptions);
-    logger.info('CV notification email sent successfully', {
-      messageId: info.messageId,
+        const info = await transporter.sendMail(mailOptions);
+        logger.info('CV notification email sent successfully', {
+            messageId: info.messageId,
             recipient: mailOptions.to,
-      applicant: applicantData.name
-    });
-    
-    return { success: true, messageId: info.messageId };
-  } catch (error) {
-    logger.error('Failed to send CV notification email', {
-      error: error.message,
-      stack: error.stack,
-      applicant: applicantData.name
-    });
-    
-    // Don't throw error - log it but continue
-    return { success: false, error: error.message };
-  }
+            applicant: applicantData.name
+        });
+        console.log('CV notification email sent successfully', info);
+        return { success: true, messageId: info.messageId };
+    } catch (error) {
+        logger.error('Failed to send CV notification email', {
+            error: error.message,
+            stack: error.stack,
+            applicant: applicantData.name
+        });
+        console.error('Failed to send CV notification email', error);
+        // Don't throw error - log it but continue
+        return { success: false, error: error.message };
+    }
 };
 
 /**
@@ -236,11 +237,13 @@ export const sendCVUploadNotification = async (applicantData, filePath, original
  */
 export const sendTestEmail = async () => {
     try {
+        console.log('Attempting to send test email...');
         const transporter = createTransporter();
         const to = process.env.MAIL_TO_ADDRESS || process.env.EMAIL_TO || process.env.EMAIL_USER;
         if (!to) {
             const msg = 'No recipient configured for test email. Set EMAIL_TO or EMAIL_USER.';
             logger.error(msg);
+            console.error(msg);
             return { success: false, error: msg };
         }
 
@@ -269,9 +272,11 @@ export const sendTestEmail = async () => {
 
         const info = await transporter.sendMail(mailOptions);
         logger.info('Test email sent successfully', { messageId: info.messageId, recipient: to });
+        console.log('Test email sent successfully', info);
         return { success: true, messageId: info.messageId };
     } catch (error) {
         logger.error('Failed to send test email', { error: error.message, stack: error.stack });
+        console.error('Failed to send test email', error);
         return { success: false, error: error.message };
     }
 };
