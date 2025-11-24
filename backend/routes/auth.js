@@ -1,243 +1,75 @@
+
 import express from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import rateLimit from 'express-rate-limit';
 import { body, validationResult } from 'express-validator';
-import { logger, securityLogger } from '../utils/logger.js';
 
 const router = express.Router();
 
-// Strict rate limiting for auth endpoints
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: parseInt(process.env.AUTH_RATE_LIMIT_MAX) || 10,
-  skipSuccessfulRequests: false,
-  message: 'Too many login attempts, please try again later.',
-  handler: (req, res) => {
-    const ip = req.ip || req.connection.remoteAddress;
-    securityLogger.logSuspiciousActivity('rate_limit_exceeded', ip, { endpoint: '/api/auth/login' });
-    res.status(429).json({
-      error: 'Too many attempts',
-      message: 'Account temporarily locked due to too many failed login attempts. Please try again in 15 minutes.'
-    });
-  }
-});
-
-// In-memory store for failed login attempts (in production, use Redis or database)
-const loginAttempts = new Map();
-const LOCKOUT_THRESHOLD = 5;
-const LOCKOUT_DURATION = 15 * 60 * 1000; // 15 minutes
-
-// Check if account is locked
-const isAccountLocked = (username) => {
-  const attempts = loginAttempts.get(username);
-  if (!attempts) return false;
-  
-  if (attempts.count >= LOCKOUT_THRESHOLD) {
-    const lockoutEnd = attempts.lastAttempt + LOCKOUT_DURATION;
-    if (Date.now() < lockoutEnd) {
-      return true;
-    } else {
-      // Lockout expired, reset
-      loginAttempts.delete(username);
-      return false;
-    }
-  }
-  return false;
-};
-
-// Record failed login attempt
-const recordFailedAttempt = (username) => {
-  const attempts = loginAttempts.get(username) || { count: 0, lastAttempt: 0 };
-  attempts.count += 1;
-  attempts.lastAttempt = Date.now();
-  loginAttempts.set(username, attempts);
-};
-
-// Clear failed attempts on successful login
-const clearFailedAttempts = (username) => {
-  loginAttempts.delete(username);
-};
-
-// Login validation
 const loginValidation = [
-  body('username')
-    .trim()
-    .notEmpty().withMessage('Username is required')
-    .isLength({ min: 3, max: 50 }).withMessage('Username must be 3-50 characters')
-    .matches(/^[a-zA-Z0-9_-]+$/).withMessage('Username can only contain letters, numbers, underscores, and hyphens'),
-  body('password')
-    .notEmpty().withMessage('Password is required')
-    .isLength({ min: 8 }).withMessage('Password must be at least 8 characters')
+  body('username').trim().notEmpty(),
+  body('password').notEmpty()
 ];
 
 // POST /api/auth/login
-router.post('/login', authLimiter, loginValidation, async (req, res) => {
+router.post('/login', loginValidation, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
     return res.status(400).json({ errors: errors.array() });
   }
 
   const { username, password } = req.body;
-  const ip = req.ip || req.connection.remoteAddress;
+  const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+  const adminPassword = process.env.ADMIN_PASSWORD || '***REDACTED***';
 
-  try {
-    // Check if account is locked
-    if (isAccountLocked(username)) {
-      securityLogger.logAuthAttempt(username, false, ip, 'account_locked');
-      return res.status(423).json({
-        error: 'Account locked',
-        message: 'Too many failed login attempts. Please try again in 15 minutes.'
-      });
-    }
-
-    // Use admin credentials from environment variables only
-    const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-    const adminPassword = process.env.ADMIN_PASSWORD || '';
-
-    // Verify username
-    if (username !== adminUsername) {
-      recordFailedAttempt(username);
-      securityLogger.logAuthAttempt(username, false, ip, 'invalid_username');
-      return res.status(401).json({
-        error: 'Authentication failed',
-        message: 'Invalid username or password'
-      });
-    }
-
-    // Verify password: prefer bcrypt hashed password comparison, fall back to plaintext
-    let isValidPassword = false;
-    try {
-      if (typeof adminPassword === 'string' && adminPassword.startsWith('$2')) {
-        isValidPassword = bcrypt.compareSync(password, adminPassword);
-      } else {
-        isValidPassword = password === adminPassword;
-      }
-    } catch (err) {
-      logger.warn('Password comparison error', err?.message || err);
-      isValidPassword = false;
-    }
-
-    if (!isValidPassword) {
-      recordFailedAttempt(username);
-      securityLogger.logAuthAttempt(username, false, ip, 'invalid_password');
-      return res.status(401).json({
-        error: 'Authentication failed',
-        message: 'Invalid username or password'
-      });
-    }
-
-    // Successful login
-    clearFailedAttempts(username);
-    securityLogger.logAuthAttempt(username, true, ip);
-
-    // Generate JWT tokens
-    // Support both legacy JWT_SECRET and new JWT_ACCESS_SECRET naming
-    const accessSecret = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET;
-    const refreshSecret = process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET_LEGACY;
-
-    const accessToken = jwt.sign(
-      { username, role: 'admin' },
-      accessSecret,
-      { expiresIn: '1h' }
-    );
-
-    const refreshToken = jwt.sign(
-      { username, role: 'admin' },
-      refreshSecret,
-      { expiresIn: '7d' }
-    );
-
-    // Set secure HTTP-only cookies
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      // For cross-site frontend (Vercel) + backend (Render) we need SameSite=None
-      sameSite: 'none',
-      maxAge: 7 * 24 * 60 * 60 * 1000
-    };
-
-    res.cookie('accessToken', accessToken, { ...cookieOptions, maxAge: 60 * 60 * 1000 }); // 1 hour
-    res.cookie('refreshToken', refreshToken, cookieOptions);
-
-    res.json({
-      success: true,
-      message: 'Login successful',
-      user: {
-        username,
-        role: 'admin'
-      }
-    });
-
-  } catch (error) {
-    logger.error('Login error:', error);
-    res.status(500).json({
-      error: 'Server error',
-      message: 'An error occurred during login'
-    });
+  if (username !== adminUsername) {
+    return res.status(401).json({ error: 'Invalid username or password' });
   }
+
+  let isValidPassword = false;
+  if (adminPassword.startsWith('$2')) {
+    isValidPassword = bcrypt.compareSync(password, adminPassword);
+  } else {
+    isValidPassword = password === adminPassword;
+  }
+  if (!isValidPassword) {
+    return res.status(401).json({ error: 'Invalid username or password' });
+  }
+
+  const jwtSecret = process.env.JWT_SECRET || '***REDACTED***';
+  const token = jwt.sign({ username, role: 'admin' }, jwtSecret, { expiresIn: '1h' });
+
+  // Set cookie options based on environment
+  const isProd = process.env.NODE_ENV === 'production';
+  res.cookie('accessToken', token, {
+    httpOnly: true,
+    secure: isProd, // true in production (HTTPS), false in development
+    sameSite: isProd ? 'none' : 'lax', // 'none' for prod, 'lax' for dev
+    maxAge: 60 * 60 * 1000 // 1 hour
+  });
+
+  res.json({ success: true, message: 'Login successful', user: { username, role: 'admin' } });
 });
 
 // POST /api/auth/logout
 router.post('/logout', (req, res) => {
   res.clearCookie('accessToken');
-  res.clearCookie('refreshToken');
   res.json({ success: true, message: 'Logged out successfully' });
 });
 
-// POST /api/auth/refresh - Refresh access token
-router.post('/refresh', async (req, res) => {
-  const refreshToken = req.cookies.refreshToken;
-  const accessSecret = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET;
-  const refreshSecret = process.env.JWT_REFRESH_SECRET || process.env.JWT_REFRESH_SECRET_LEGACY;
-
-  if (!refreshToken) {
-    return res.status(401).json({ error: 'No refresh token provided' });
-  }
-
-  try {
-    const decoded = jwt.verify(refreshToken, refreshSecret);
-    
-    const newAccessToken = jwt.sign(
-      { username: decoded.username, role: decoded.role },
-      accessSecret,
-      { expiresIn: '1h' }
-    );
-
-    res.cookie('accessToken', newAccessToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 60 * 60 * 1000 // 1 hour
-    });
-
-    res.json({ success: true, message: 'Token refreshed' });
-
-  } catch (error) {
-    logger.error('Token refresh error:', error);
-    res.status(401).json({ error: 'Invalid refresh token' });
-  }
-});
-
-// GET /api/auth/verify - Verify if user is authenticated
+// GET /api/auth/verify
 router.get('/verify', (req, res) => {
-  const accessToken = req.cookies.accessToken;
-  const accessSecret = process.env.JWT_ACCESS_SECRET || process.env.JWT_SECRET;
+  const token = req.cookies.accessToken;
+  const jwtSecret = process.env.JWT_SECRET || '***REDACTED***';
 
-  if (!accessToken) {
+  if (!token) {
     return res.status(401).json({ authenticated: false });
   }
 
   try {
-    const decoded = jwt.verify(accessToken, accessSecret);
-    res.json({
-      authenticated: true,
-      user: {
-        username: decoded.username,
-        role: decoded.role
-      }
-    });
-  } catch (error) {
+    const decoded = jwt.verify(token, jwtSecret);
+    res.json({ authenticated: true, user: { username: decoded.username, role: decoded.role } });
+  } catch {
     res.status(401).json({ authenticated: false });
   }
 });
