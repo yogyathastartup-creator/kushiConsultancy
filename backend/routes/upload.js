@@ -181,27 +181,26 @@ router.post('/cv', (req, res, next) => {
     logger.info('CV uploaded successfully', fileInfo);
     securityLogger.logFileUpload(req.file.originalname, req.file.size, ip, true);
 
-    // Send email notification asynchronously
-    sendCVUploadNotification(
+    // Send email notification to admin (await)
+    const emailResult = await sendCVUploadNotification(
       fileInfo.applicant,
       req.file.path,
       req.file.originalname
-    ).then(emailResult => {
-      if (!emailResult.success) {
-        logger.warn('Email notification failed but upload succeeded', {
-          error: emailResult.error,
-          applicant: req.body.name
-        });
-      }
-    }).catch(error => {
-      logger.error('Async email notification error', { error, applicant: req.body.name });
-    });
+    );
+
+    if (!emailResult.success) {
+      // Log email failure but don't block upload success
+      logger.warn('Email notification failed but upload succeeded', {
+        error: emailResult.error,
+        applicant: req.body.name
+      });
+    }
 
     res.json({
       success: true,
       message: 'CV uploaded successfully',
       fileId: crypto.createHash('sha256').update(req.file.filename).digest('hex').substring(0, 16),
-      emailSent: true // Always true, since email is now async
+      emailSent: emailResult.success
     });
 
   } catch (error) {
