@@ -110,9 +110,10 @@ const getRateLimitValue = (envVar, defaultValue) => {
   return isNaN(value) ? defaultValue : value;
 };
 
+// Increase rate limit for development; adjust for production as needed
 const globalLimiter = rateLimit({
   windowMs: getRateLimitValue(process.env.RATE_LIMIT_WINDOW_MS, 15 * 60 * 1000),
-  max: getRateLimitValue(process.env.RATE_LIMIT_MAX_REQUESTS, 100),
+  max: getRateLimitValue(process.env.RATE_LIMIT_MAX_REQUESTS, 1000), // Increased from 100 to 1000
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
