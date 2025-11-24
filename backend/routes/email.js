@@ -26,5 +26,9 @@ router.get('/test', testEmailLimiter, async (req, res) => {
     res.status(500).json({ success: false, error: 'Failed to send test email' });
   }
 });
+router.post('/test', async (req, res) => {
+  const result = await sendTestEmail();
+  res.json(result);
+});
 
 export default router;
