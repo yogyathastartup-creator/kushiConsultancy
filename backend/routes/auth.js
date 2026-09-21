@@ -19,10 +19,15 @@ router.post('/login', loginValidation, async (req, res) => {
   }
 
   const { username, password } = req.body;
-  // Debug: Log received credentials (do not use in production)
-  console.log('Login attempt:', { username, password });
-  const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-  const adminPassword = process.env.ADMIN_PASSWORD || '***REDACTED***';
+
+  const adminUsername = process.env.ADMIN_USERNAME;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  const jwtSecret = process.env.JWT_SECRET;
+
+  if (!adminUsername || !adminPassword || !jwtSecret) {
+    console.error('Login rejected: ADMIN_USERNAME, ADMIN_PASSWORD, and JWT_SECRET must all be set in the environment.');
+    return res.status(500).json({ error: 'Server is not configured for authentication' });
+  }
 
   if (username !== adminUsername) {
     return res.status(401).json({ error: 'Invalid username or password' });
@@ -38,7 +43,6 @@ router.post('/login', loginValidation, async (req, res) => {
     return res.status(401).json({ error: 'Invalid username or password' });
   }
 
-  const jwtSecret = process.env.JWT_SECRET || '***REDACTED***';
   const token = jwt.sign({ username, role: 'admin' }, jwtSecret, { expiresIn: '1h' });
 
   // Set cookie options based on environment
@@ -62,9 +66,9 @@ router.post('/logout', (req, res) => {
 // GET /api/auth/verify
 router.get('/verify', (req, res) => {
   const token = req.cookies.accessToken;
-  const jwtSecret = process.env.JWT_SECRET || '***REDACTED***';
+  const jwtSecret = process.env.JWT_SECRET;
 
-  if (!token) {
+  if (!token || !jwtSecret) {
     return res.status(401).json({ authenticated: false });
   }
 

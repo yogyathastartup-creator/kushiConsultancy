@@ -50,3 +50,8 @@ Thumbs.db
 # Ignore server logs directory
 server/logs/
 .vercel
+
+# Secrets / credential artifacts that must never be committed
+cookies.txt
+replacements.txt
+*.cookies.txt
