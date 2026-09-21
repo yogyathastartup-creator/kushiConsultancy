@@ -5,7 +5,6 @@ export function getApiUrl() {
   return base.replace(/\/$/, ''); // remove trailing slash
 }
 
-export function logApiResolution(context = 'init') {
-  // eslint-disable-next-line no-console
-  console.log(`[api] (${context}) using API base:`, getApiUrl());
+export function logApiResolution() {
+  // Intentionally no-op in production: avoid leaking backend URLs/infra details to the browser console.
 }
