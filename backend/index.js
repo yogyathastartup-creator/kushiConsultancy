@@ -9,7 +9,6 @@ import morgan from 'morgan';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { logger } from './utils/logger.js';
-import nodemailer from 'nodemailer';
 import authRoutes from './routes/auth.js';
 import uploadRoutes from './routes/upload.js';
 import emailRoutes from './routes/email.js';
@@ -33,33 +32,6 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-// Email sending endpoint using nodemailer
-const emailTransporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || process.env.EMAIL_HOST,
-  port: process.env.SMTP_PORT || process.env.EMAIL_PORT,
-  secure: (process.env.SMTP_PORT == 587 || process.env.EMAIL_PORT == 587),
-  auth: {
-    user: process.env.SMTP_USER || process.env.EMAIL_USER,
-    pass: process.env.SMTP_PASS || process.env.EMAIL_PASSWORD,
-  },
-});
-
-app.post('/api/send-email', express.json(), async (req, res) => {
-  const { recipient, subject, body } = req.body;
-  const mailOptions = {
-    from: process.env.EMAIL_FROM || process.env.MAIL_FROM_ADDRESS || process.env.EMAIL_USER,
-    to: recipient,
-    subject: subject,
-    html: body,
-  };
-  try {
-    await emailTransporter.sendMail(mailOptions);
-    res.status(200).send({ message: 'Email sent successfully!' });
-  } catch (error) {
-    console.error('Error sending email:', error);
-    res.status(500).send({ error: 'Failed to send email' });
-  }
-});
 
 // Security Middleware
 app.use(helmet({
@@ -208,13 +180,6 @@ app.use((req, res) => {
 const server = app.listen(PORT, '0.0.0.0', () => {
   logger.info(`🚀 Server running on port ${PORT}`);
   logger.info(`Environment: ${process.env.NODE_ENV || 'development'}`);
-  // Debug: Log relevant environment variables
-  logger.info(`ADMIN_USERNAME: ${process.env.ADMIN_USERNAME}`);
-  logger.info(`ADMIN_PASSWORD: ${process.env.ADMIN_PASSWORD}`);
-  logger.info(`JWT_SECRET: ${process.env.JWT_SECRET}`);
-  logger.info(`CORS_ORIGINS: ${process.env.CORS_ORIGINS}`);
-  logger.info(`COOKIE_SAMESITE: ${process.env.COOKIE_SAMESITE}`);
-  logger.info(`COOKIE_SECURE: ${process.env.COOKIE_SECURE}`);
 });
 
 server.on('error', (error) => {
