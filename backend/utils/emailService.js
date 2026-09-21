@@ -1,43 +1,47 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
+import { promises as fs } from 'fs';
 import { logger } from './logger.js';
 
-// Reusable, pooled transporter supporting both Java-style and legacy env vars.
-// Built once and cached so each email doesn't pay for a fresh SMTP + TLS handshake.
-let cachedTransporter = null;
+// Resend delivers over HTTPS (port 443), which avoids the outbound SMTP port
+// blocks/timeouts that many cheap hosting providers (e.g. Render) impose to
+// prevent their platform being used as a spam relay.
+let cachedClient = null;
 
-const createTransporter = () => {
-    if (cachedTransporter) {
-        return cachedTransporter;
+const getClient = () => {
+    if (cachedClient) {
+        return cachedClient;
     }
 
-    const host = process.env.SMTP_HOST || process.env.EMAIL_HOST;
-    const portRaw = process.env.SMTP_PORT || process.env.EMAIL_PORT || '587';
-    const port = parseInt(portRaw, 10);
-    const secure = (process.env.SMTP_SECURE === 'true' || process.env.EMAIL_SECURE === 'true' || port === 465);
-    const user = process.env.SMTP_USERNAME || process.env.EMAIL_USER;
-    const pass = (process.env.SMTP_PASSWORD || process.env.EMAIL_PASSWORD || '').replace(/\s+/g, '');
-
-    if (!user || !pass) {
-        const msg = 'SMTP/EMAIL credentials missing: set SMTP_HOST & SMTP_USERNAME/SMTP_PASSWORD or EMAIL_USER & EMAIL_PASSWORD.';
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) {
+        const msg = 'RESEND_API_KEY is not set. Configure it in your hosting provider\'s environment variables.';
         logger.error(msg);
         throw new Error(msg);
     }
 
-    cachedTransporter = (host)
-        ? nodemailer.createTransport({ host, port, secure, pool: true, auth: { user, pass } })
-        : nodemailer.createTransport({ service: 'gmail', pool: true, auth: { user, pass } });
-
-    return cachedTransporter;
+    cachedClient = new Resend(apiKey);
+    return cachedClient;
 };
+
+const getFromAddress = () =>
+    process.env.MAIL_FROM_ADDRESS || process.env.EMAIL_FROM || 'noreply@kushiconsultancy.com';
+
+const getToAddress = () =>
+    process.env.MAIL_TO_ADDRESS || process.env.EMAIL_TO || process.env.EMAIL_USER;
 
 /**
  * Send CV upload notification email
  */
 export const sendCVUploadNotification = async (applicantData, filePath, originalFileName) => {
     try {
-        console.log('Attempting to send CV notification email...');
-        const transporter = createTransporter();
-    
+        const resend = getClient();
+        const to = getToAddress();
+        if (!to) {
+            const msg = 'No recipient configured. Set MAIL_TO_ADDRESS (or EMAIL_TO / EMAIL_USER).';
+            logger.error(msg);
+            return { success: false, error: msg };
+        }
+
         const emailTemplate = `
 <!DOCTYPE html>
 <html lang="en">
@@ -127,57 +131,57 @@ export const sendCVUploadNotification = async (applicantData, filePath, original
         <h1>📧 New CV Submission Received</h1>
         <p style="margin: 10px 0 0 0; font-size: 16px;">Kushi Consultancy - Recruitment Portal</p>
     </div>
-    
+
     <div class="content">
         <div class="info-section">
             <h2 style="color: #0073b1; margin-top: 0;">Applicant Information</h2>
-            
+
             <div class="info-row">
                 <span class="info-label">👤 Full Name:</span>
                 <span class="info-value">${applicantData.name}</span>
             </div>
-            
+
             <div class="info-row">
                 <span class="info-label">📧 Email:</span>
                 <span class="info-value"><a href="mailto:${applicantData.email}">${applicantData.email}</a></span>
             </div>
-            
+
             <div class="info-row">
                 <span class="info-label">📱 Phone:</span>
                 <span class="info-value"><a href="tel:${applicantData.phone}">${applicantData.phone}</a></span>
             </div>
-            
+
             <div class="info-row">
                 <span class="info-label">💼 Position Applied:</span>
                 <span class="info-value">${applicantData.position}</span>
             </div>
-            
+
             <div class="info-row">
                 <span class="info-label">⏱️ Experience:</span>
                 <span class="info-value">${applicantData.experience}</span>
             </div>
-            
+
             <div class="info-row">
                 <span class="info-label">📍 Location:</span>
                 <span class="info-value">${applicantData.location}</span>
             </div>
         </div>
-        
+
         <div class="file-info">
             <div class="file-icon">📄</div>
             <strong>Resume/CV Attached</strong><br>
             <span style="color: #666; font-size: 14px;">${originalFileName}</span>
         </div>
-        
+
         <p style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; border-radius: 4px; margin: 20px 0;">
             <strong>⚠️ Action Required:</strong> Please review the attached CV and contact the candidate within 3-5 business days if their profile matches your requirements.
         </p>
-        
+
         <div class="timestamp">
-            Submitted on: ${new Date().toLocaleString('en-US', { 
-              weekday: 'long', 
-              year: 'numeric', 
-              month: 'long', 
+            Submitted on: ${new Date().toLocaleString('en-US', {
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
               day: 'numeric',
               hour: '2-digit',
               minute: '2-digit',
@@ -185,7 +189,7 @@ export const sendCVUploadNotification = async (applicantData, filePath, original
             })}
         </div>
     </div>
-    
+
     <div class="footer">
         <p style="margin: 0;">Kushi Consultancy - Expert Recruitment Services</p>
         <p style="margin: 10px 0 0 0; font-size: 12px;">Oil & Gas | Energy | Infrastructure | FMCG</p>
@@ -194,87 +198,81 @@ export const sendCVUploadNotification = async (applicantData, filePath, original
 </html>
     `;
 
-        const mailOptions = {
-            from: {
-                name: 'Kushi Consultancy Portal',
-                address: process.env.MAIL_FROM_ADDRESS || process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@kushiconsultancy.com',
-            },
-            to: process.env.MAIL_TO_ADDRESS || process.env.EMAIL_TO || process.env.EMAIL_USER,
+        const fileBuffer = await fs.readFile(filePath);
+
+        const { data, error } = await resend.emails.send({
+            from: `Kushi Consultancy Portal <${getFromAddress()}>`,
+            to,
             subject: `New CV Submission: ${applicantData.name} - ${applicantData.position}`,
             html: emailTemplate,
             attachments: [
                 {
                     filename: originalFileName,
-                    path: filePath,
+                    content: fileBuffer,
                 },
             ],
-        };
+        });
 
-        const info = await transporter.sendMail(mailOptions);
+        if (error) {
+            throw new Error(error.message || JSON.stringify(error));
+        }
+
         logger.info('CV notification email sent successfully', {
-            messageId: info.messageId,
-            recipient: mailOptions.to,
+            messageId: data?.id,
+            recipient: to,
             applicant: applicantData.name
         });
-        console.log('CV notification email sent successfully', info);
-        return { success: true, messageId: info.messageId };
+        return { success: true, messageId: data?.id };
     } catch (error) {
         logger.error('Failed to send CV notification email', {
             error: error.message,
             stack: error.stack,
             applicant: applicantData.name
         });
-        console.error('Failed to send CV notification email', error);
         // Don't throw error - log it but continue
         return { success: false, error: error.message };
     }
 };
 
 /**
- * Send a simple test email to verify SMTP configuration
+ * Send a simple test email to verify Resend configuration
  */
 export const sendTestEmail = async () => {
     try {
-        console.log('Attempting to send test email...');
-        const transporter = createTransporter();
-        const to = process.env.MAIL_TO_ADDRESS || process.env.EMAIL_TO || process.env.EMAIL_USER;
+        const resend = getClient();
+        const to = getToAddress();
         if (!to) {
-            const msg = 'No recipient configured for test email. Set EMAIL_TO or EMAIL_USER.';
+            const msg = 'No recipient configured for test email. Set MAIL_TO_ADDRESS (or EMAIL_TO / EMAIL_USER).';
             logger.error(msg);
-            console.error(msg);
             return { success: false, error: msg };
         }
 
         const html = `
             <div style="font-family: Arial, sans-serif; line-height:1.6">
-                <h2>SMTP Test Email ✅</h2>
-                <p>This is a test email from the Kushi Consultancy server to verify your SMTP settings.</p>
+                <h2>Resend Test Email ✅</h2>
+                <p>This is a test email from the Kushi Consultancy server to verify your Resend configuration.</p>
                 <ul>
-                    <li><strong>Host</strong>: ${process.env.SMTP_HOST || process.env.EMAIL_HOST || 'gmail (service)'}</li>
-                    <li><strong>Port</strong>: ${process.env.SMTP_PORT || process.env.EMAIL_PORT || 'default'}</li>
-                    <li><strong>Secure</strong>: ${(process.env.SMTP_SECURE || process.env.EMAIL_SECURE || 'auto')}</li>
+                    <li><strong>From</strong>: ${getFromAddress()}</li>
                     <li><strong>Environment</strong>: ${process.env.NODE_ENV || 'development'}</li>
                 </ul>
                 <p style="color:#555;font-size:12px">Timestamp: ${new Date().toISOString()}</p>
             </div>`;
 
-        const mailOptions = {
-            from: {
-                name: 'Kushi Consultancy Portal',
-                address: process.env.MAIL_FROM_ADDRESS || process.env.EMAIL_FROM || process.env.EMAIL_USER || 'noreply@kushiconsultancy.com',
-            },
+        const { data, error } = await resend.emails.send({
+            from: `Kushi Consultancy Portal <${getFromAddress()}>`,
             to,
-            subject: 'Kushi Consultancy | SMTP test email',
+            subject: 'Kushi Consultancy | Resend test email',
             html,
-        };
+        });
 
-        const info = await transporter.sendMail(mailOptions);
-        logger.info('Test email sent successfully', { messageId: info.messageId, recipient: to });
-        console.log('Test email sent successfully', info);
-        return { success: true, messageId: info.messageId };
+        if (error) {
+            throw new Error(error.message || JSON.stringify(error));
+        }
+
+        logger.info('Test email sent successfully', { messageId: data?.id, recipient: to });
+        return { success: true, messageId: data?.id };
     } catch (error) {
         logger.error('Failed to send test email', { error: error.message, stack: error.stack });
-        console.error('Failed to send test email', error);
         return { success: false, error: error.message };
     }
 };
