@@ -49,6 +49,7 @@ Thumbs.db
 
 # Ignore server logs directory
 server/logs/
+backend/logs/
 .vercel
 
 # Secrets / credential artifacts that must never be committed
