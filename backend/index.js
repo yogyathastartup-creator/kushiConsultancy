@@ -33,6 +33,11 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Render (and most PaaS hosts) sit behind a reverse proxy and set X-Forwarded-For.
+// Without this, express-rate-limit throws on every request trying to read req.ip,
+// which is caught by the unhandledRejection handler above and crashes the process.
+app.set('trust proxy', 1);
+
 // Security Middleware
 app.use(helmet({
   hsts: {
