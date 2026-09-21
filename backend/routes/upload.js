@@ -181,27 +181,29 @@ router.post('/cv', (req, res, next) => {
     logger.info('CV uploaded successfully', fileInfo);
     securityLogger.logFileUpload(req.file.originalname, req.file.size, ip, true);
 
-    // Send email notification to admin (await)
-    const emailResult = await sendCVUploadNotification(
-      fileInfo.applicant,
-      req.file.path,
-      req.file.originalname
-    );
-
-    if (!emailResult.success) {
-      // Log email failure but don't block upload success
-      logger.warn('Email notification failed but upload succeeded', {
-        error: emailResult.error,
-        applicant: req.body.name
-      });
-    }
-
+    // Respond immediately; send the notification email in the background so the
+    // browser isn't stuck waiting on an SMTP round trip before it hears back.
     res.json({
       success: true,
       message: 'CV uploaded successfully',
-      fileId: crypto.createHash('sha256').update(req.file.filename).digest('hex').substring(0, 16),
-      emailSent: emailResult.success
+      fileId: crypto.createHash('sha256').update(req.file.filename).digest('hex').substring(0, 16)
     });
+
+    sendCVUploadNotification(fileInfo.applicant, req.file.path, req.file.originalname)
+      .then((emailResult) => {
+        if (!emailResult.success) {
+          logger.warn('Email notification failed but upload succeeded', {
+            error: emailResult.error,
+            applicant: req.body.name
+          });
+        }
+      })
+      .catch((error) => {
+        logger.error('Email notification threw unexpectedly', { error: error.message });
+      })
+      .finally(() => {
+        fs.unlink(req.file.path).catch(err => logger.error('Failed to delete file after email send:', err));
+      });
 
   } catch (error) {
     logger.error('Upload processing error:', error);

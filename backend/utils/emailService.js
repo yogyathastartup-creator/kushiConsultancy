@@ -1,8 +1,15 @@
 import nodemailer from 'nodemailer';
 import { logger } from './logger.js';
 
-// Create reusable transporter supporting both Java-style and legacy env vars
+// Reusable, pooled transporter supporting both Java-style and legacy env vars.
+// Built once and cached so each email doesn't pay for a fresh SMTP + TLS handshake.
+let cachedTransporter = null;
+
 const createTransporter = () => {
+    if (cachedTransporter) {
+        return cachedTransporter;
+    }
+
     const host = process.env.SMTP_HOST || process.env.EMAIL_HOST;
     const portRaw = process.env.SMTP_PORT || process.env.EMAIL_PORT || '587';
     const port = parseInt(portRaw, 10);
@@ -10,26 +17,17 @@ const createTransporter = () => {
     const user = process.env.SMTP_USERNAME || process.env.EMAIL_USER;
     const pass = (process.env.SMTP_PASSWORD || process.env.EMAIL_PASSWORD || '').replace(/\s+/g, '');
 
-    if (host && user && pass) {
-        return nodemailer.createTransport({
-            host,
-            port,
-            secure,
-            auth: { user, pass }
-        });
-    }
-
-    // Gmail fallback
     if (!user || !pass) {
         const msg = 'SMTP/EMAIL credentials missing: set SMTP_HOST & SMTP_USERNAME/SMTP_PASSWORD or EMAIL_USER & EMAIL_PASSWORD.';
         logger.error(msg);
         throw new Error(msg);
     }
 
-    return nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user, pass }
-    });
+    cachedTransporter = (host)
+        ? nodemailer.createTransport({ host, port, secure, pool: true, auth: { user, pass } })
+        : nodemailer.createTransport({ service: 'gmail', pool: true, auth: { user, pass } });
+
+    return cachedTransporter;
 };
 
 /**

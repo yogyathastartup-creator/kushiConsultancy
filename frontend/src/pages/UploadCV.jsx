@@ -167,15 +167,13 @@ const UploadCV = () => {
 
             // Upload to Express server endpoint
             const apiUrl = getApiUrl();
-            console.log('Uploading to:', `${apiUrl}/upload/cv`);
-            
+
             const response = await fetch(`${apiUrl}/upload/cv`, {
                 method: 'POST',
                 body: uploadData,
                 // Don't set Content-Type header - browser will set it with boundary for multipart/form-data
             });
 
-            console.log('Response status:', response.status);
             const contentType = response.headers.get('Content-Type');
             console.log('Response Content-Type:', contentType);
             
