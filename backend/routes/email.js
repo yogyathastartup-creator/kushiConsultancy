@@ -2,6 +2,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 import { sendTestEmail } from '../utils/emailService.js';
 import { logger } from '../utils/logger.js';
+import { requireAdmin } from './auth.js';
 
 const router = express.Router();
 
@@ -13,8 +14,8 @@ const testEmailLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-// GET /api/email/test - trigger a test email
-router.get('/test', testEmailLimiter, async (req, res) => {
+// POST /api/email/test - send a test email (admin only)
+router.post('/test', requireAdmin, testEmailLimiter, async (req, res) => {
   try {
     const result = await sendTestEmail();
     if (!result.success) {
@@ -25,10 +26,6 @@ router.get('/test', testEmailLimiter, async (req, res) => {
     logger.error('Test email endpoint error', { error: error.message });
     res.status(500).json({ success: false, error: 'Failed to send test email' });
   }
-});
-router.post('/test', async (req, res) => {
-  const result = await sendTestEmail();
-  res.json(result);
 });
 
 export default router;

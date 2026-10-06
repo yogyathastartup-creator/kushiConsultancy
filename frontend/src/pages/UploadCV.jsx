@@ -1,13 +1,14 @@
 import React, { useState } from 'react';
 import { getApiUrl, logApiResolution } from '../utils/api';
 import { useLocation } from 'react-router-dom';
+import { CONTACT_EMAIL } from '../utils/constants';
 import { validateFile, validateEmail, validatePhone, validateTextInput, sanitizeInput } from '../utils/validation';
 import '../styles/UploadCV.css';
 
-/* global URLSearchParams, FormData, fetch */
+/* global URLSearchParams, FormData */
 
 const UploadCV = () => {
-    const contactEmail = import.meta.env.VITE_CONTACT_EMAIL || 'yogyatha.startup@gmail.com';
+    const contactEmail = CONTACT_EMAIL;
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -175,18 +176,13 @@ const UploadCV = () => {
             });
 
             const contentType = response.headers.get('Content-Type');
-            console.log('Response Content-Type:', contentType);
-            
             let result;
             if (contentType && contentType.includes('application/json')) {
                 result = await response.json();
             } else {
-                const text = await response.text();
-                console.error('Non-JSON response:', text);
+                await response.text();
                 throw new Error('Server returned invalid response');
             }
-
-            console.log('Upload result:', result);
 
             if (response.ok && result.success) {
                 setSuccess(true);

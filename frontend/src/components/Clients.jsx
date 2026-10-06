@@ -22,6 +22,11 @@ const clientsData = {
     ]
 };
 
+// Hide a logo that fails to load rather than showing a broken-image icon
+const hideBrokenLogo = (e) => {
+    e.currentTarget.parentElement.style.display = 'none';
+};
+
 const Clients = () => {
     // Combine all clients for continuous scrolling
     const allClients = [...clientsData.india, ...clientsData.gulf];
@@ -39,10 +44,8 @@ const Clients = () => {
                                 src={client.logo} 
                                 alt={client.name} 
                                 title={client.name}
-                                onError={(e) => {
-                                    e.target.onerror = null;
-                                    e.target.src = `https://via.placeholder.com/150x60/0073b1/FFFFFF?text=${encodeURIComponent(client.name)}`;
-                                }} 
+                                loading="lazy"
+                                onError={hideBrokenLogo}
                             />
                         </div>
                     ))}
@@ -53,10 +56,8 @@ const Clients = () => {
                                 src={client.logo} 
                                 alt={client.name}
                                 title={client.name}
-                                onError={(e) => {
-                                    e.target.onerror = null;
-                                    e.target.src = `https://via.placeholder.com/150x60/0073b1/FFFFFF?text=${encodeURIComponent(client.name)}`;
-                                }} 
+                                loading="lazy"
+                                onError={hideBrokenLogo}
                             />
                         </div>
                     ))}

@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { sanitizeInput, validateUsername, validatePassword } from '../utils/validation';
 import { getApiUrl, logApiResolution } from '../utils/api';
 import '../styles/AdminLogin.css';
 
@@ -17,11 +16,12 @@ const AdminLogin = () => {
         logApiResolution('AdminLogin');
     }, []);
 
+    // Credentials are sent as JSON and never rendered, so they are passed through
+    // unchanged; altering them would make some valid passwords impossible to enter.
     const handleChange = (e) => {
-        const sanitized = sanitizeInput(e.target.value);
         setCredentials({
             ...credentials,
-            [e.target.name]: sanitized
+            [e.target.name]: e.target.value
         });
         setError('');
     };
@@ -31,16 +31,8 @@ const AdminLogin = () => {
         setError('');
         setLoading(true);
         
-        // Client-side validation
-        if (!validateUsername(credentials.username)) {
-            setError('Invalid username format');
-            setLoading(false);
-            return;
-        }
-
-        const passwordValidation = validatePassword(credentials.password);
-        if (!passwordValidation.valid) {
-            setError(passwordValidation.message);
+        if (!credentials.username.trim() || !credentials.password) {
+            setError('Please enter your username and password');
             setLoading(false);
             return;
         }
@@ -59,10 +51,20 @@ const AdminLogin = () => {
             });
 
             const contentType = response.headers.get('Content-Type');
-            
+
+            if (response.status === 401) {
+                setError('Invalid username or password');
+                setCredentials(prev => ({ ...prev, password: '' }));
+                return;
+            }
+
+            if (response.status === 429) {
+                setError('Too many login attempts. Please try again in 15 minutes.');
+                return;
+            }
+
             if (!response.ok) {
-                const text = await response.text();
-                throw new Error(`Server error: ${response.status} - ${text}`);
+                throw new Error(`Server error: ${response.status}`);
             }
 
             if (contentType && contentType.includes('application/json')) {
@@ -82,7 +84,7 @@ const AdminLogin = () => {
             }
         } catch (err) {
             console.error('Login error:', err);
-            setError(err.message || 'Network error. Please ensure the server is running.');
+            setError('Unable to reach the server. Please try again shortly.');
         } finally {
             setLoading(false);
         }

@@ -5,7 +5,6 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Create logs directory if it doesn't exist
 const logsDir = path.join(__dirname, '../logs');
 
 // Define log format
@@ -51,8 +50,11 @@ const logger = winston.createLogger({
   ]
 });
 
-// If we're not in production, log to the console as well
-if (process.env.NODE_ENV !== 'production') {
+// Always log to the console: hosts like Render only show stdout/stderr, and their
+// filesystem is wiped on every deploy, so the log files above are not durable there.
+if (process.env.NODE_ENV === 'production') {
+  logger.add(new winston.transports.Console({ format: logFormat }));
+} else if (process.env.NODE_ENV !== 'test') {
   logger.add(new winston.transports.Console({
     format: winston.format.combine(
       winston.format.colorize(),

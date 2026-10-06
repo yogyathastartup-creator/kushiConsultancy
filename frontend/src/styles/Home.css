@@ -13,7 +13,8 @@
 .hero-image {
     position: absolute;
     inset: 0;
-    background-image: url('/hero/kushi-structural-banner.png'); /* Place image at public/hero/kushi-structural-banner.png */
+    background-image: url('/hero/kushi-structural-banner.png');
+    background-image: image-set(url('/hero/kushi-structural-banner.webp') type('image/webp'), url('/hero/kushi-structural-banner.png') type('image/png'));
     background-size: cover;
     background-position: center;
     transform: scale(1);
@@ -373,5 +374,19 @@ html {
     
     .scroll-reveal {
         transform: translateY(30px) scale(0.98);
+    }
+}
+
+/* Phones: the banner has text baked into it, so show it whole instead of cropping */
+@media (max-width: 768px) {
+    .hero-banner {
+        height: auto;
+        min-height: 0;
+        aspect-ratio: 1312 / 861;
+    }
+
+    .hero-image {
+        background-size: contain;
+        animation: none;
     }
 }

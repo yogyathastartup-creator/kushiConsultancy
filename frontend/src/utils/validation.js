@@ -1,4 +1,5 @@
-import validator from 'validator';
+import isEmail from 'validator/es/lib/isEmail';
+import isMobilePhone from 'validator/es/lib/isMobilePhone';
 
 /**
  * Sanitize string input to prevent XSS
@@ -26,7 +27,7 @@ export const sanitizeInput = (input) => {
  */
 export const validateEmail = (email) => {
   if (!email || typeof email !== 'string') return false;
-  return validator.isEmail(email);
+  return isEmail(email);
 };
 
 /**
@@ -35,7 +36,7 @@ export const validateEmail = (email) => {
 export const validatePhone = (phone) => {
   if (!phone || typeof phone !== 'string') return false;
   // Allow international formats
-  return validator.isMobilePhone(phone, 'any', { strictMode: false });
+  return isMobilePhone(phone, 'any', { strictMode: false });
 };
 
 /**
