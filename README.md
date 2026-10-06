@@ -5,7 +5,7 @@ Website for Kushi Civil and Structural Consultancy: a React + Vite single-page s
 ## Project Structure
 
 - `frontend/` — React + Vite site (deployed to Netlify)
-- `backend/` — Express API: admin login, CV upload, email notifications via Resend (deployed to Render)
+- `backend/` — Express API: admin login and CV submission (deployed to Render). CVs are held in memory only: each one is emailed to recruitment with the CV attached, and the applicant gets a confirmation email, via Resend. Nothing is saved to disk.
 - `netlify.toml` — Netlify build settings and security headers
 - `frontend/public/_redirects` — proxies `/api/*` to the Render backend and enables SPA routing
 - `DEPLOYMENT.md` — step-by-step guide to going live on kushiconsultancy.com
@@ -49,6 +49,8 @@ cd frontend && npm run lint && npm test && npm run build
 | `RESEND_API_KEY` | yes | API key from resend.com for CV notification emails |
 | `MAIL_FROM_ADDRESS` | yes | Sender, on a domain verified in Resend (e.g. `noreply@kushiconsultancy.com`) |
 | `MAIL_TO_ADDRESS` | yes | Inbox that receives CV submissions |
+| `MAIL_REPLY_TO` | no | Reply-To address on the applicant confirmation email |
+| `UPLOAD_RATE_LIMIT_MAX` | no | CV submissions allowed per IP per hour (default 10) |
 | `CORS_ORIGINS` | no | Extra allowed origins, comma-separated (the production domains are built in) |
 | `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX_REQUESTS` | no | Global rate limit (default 1000 requests / 15 min per IP) |
 
@@ -68,4 +70,4 @@ cd backend && node -e "require('bcrypt').hash(process.argv[1], 12).then(console.
 ## Known Limitations
 
 - **Admin dashboard edits are stored in the admin's browser (`localStorage`)**, not on the server, so content changes made in the dashboard are only visible on that one browser. Publishing edits to all visitors needs a database-backed content API.
-- The upload virus scan (`backend/utils/avScanner.js`) is a stub; uploaded files are type-checked by content but not scanned for malware.
+- The upload virus scan (`backend/utils/avScanner.js`) is a stub; uploaded files are type-checked by content but not scanned for malware before being emailed.

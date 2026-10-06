@@ -32,12 +32,7 @@ const LoadingSpinner = () => (
 
 const App = () => {
   return (
-    <Router
-      future={{
-        v7_startTransition: true,
-        v7_relativeSplatPath: true
-      }}
-    >
+    <Router>
       <div className="App">
         <Suspense fallback={<LoadingSpinner />}>
           <Routes>

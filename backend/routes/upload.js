@@ -1,32 +1,17 @@
 import express from 'express';
 import multer from 'multer';
 import path from 'path';
-import { promises as fs } from 'fs';
-import crypto from 'crypto';
-import os from 'os';
+import rateLimit from 'express-rate-limit';
 import { body, validationResult } from 'express-validator';
 import { logger, securityLogger } from '../utils/logger.js';
-import { sendCVUploadNotification } from '../utils/emailService.js';
+import { sendCVUploadNotification, sendApplicantConfirmation } from '../utils/emailService.js';
 import { scanFile } from '../utils/avScanner.js';
 
 const router = express.Router();
 
-// Use system temp directory for uploads (compatible with Vercel/Serverless)
-const UPLOAD_DIR = os.tmpdir();
-const ensureUploadDir = async () => {
-  // Temp dir always exists, but good to be safe
-  try {
-    await fs.access(UPLOAD_DIR);
-  } catch {
-    // Should not happen for os.tmpdir(), but fallback just in case
-    await fs.mkdir(UPLOAD_DIR, { recursive: true, mode: 0o700 });
-  }
-};
-ensureUploadDir();
-
 // File validation settings
 const MAX_FILE_SIZE = parseInt(process.env.MAX_FILE_SIZE) || 5 * 1024 * 1024; // 5MB
-const ALLOWED_MIME_TYPES = (process.env.ALLOWED_FILE_TYPES || 
+const ALLOWED_MIME_TYPES = (process.env.ALLOWED_FILE_TYPES ||
   'application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document')
   .split(',');
 
@@ -39,38 +24,27 @@ const FILE_SIGNATURES = {
 
 // The browser-supplied MIME type and extension are attacker controlled, so
 // confirm the file content actually starts like the format it claims to be.
-const hasValidSignature = async (filePath, originalName) => {
+const hasValidSignature = (buffer, originalName) => {
   const signatures = FILE_SIGNATURES[path.extname(originalName).toLowerCase()];
   if (!signatures) {
     return false;
   }
-  const handle = await fs.open(filePath, 'r');
-  try {
-    const header = Buffer.alloc(8);
-    const { bytesRead } = await handle.read(header, 0, header.length, 0);
-    return signatures.some(sig => bytesRead >= sig.length && header.subarray(0, sig.length).equals(sig));
-  } finally {
-    await handle.close();
-  }
+  return signatures.some(sig => buffer.length >= sig.length && buffer.subarray(0, sig.length).equals(sig));
 };
 
-// Configure multer for secure file uploads
-const storage = multer.diskStorage({
-  destination: async (req, file, cb) => {
-    cb(null, UPLOAD_DIR);
-  },
-  filename: (req, file, cb) => {
-    // Generate cryptographically secure random filename
-    const randomName = crypto.randomBytes(16).toString('hex');
-    const ext = path.extname(file.originalname).toLowerCase();
-    const sanitizedExt = ext.replace(/[^a-z0-9.]/gi, ''); // Remove dangerous characters
-    cb(null, `${randomName}${sanitizedExt}`);
-  }
+// Each submission emails the applicant a confirmation, so limit how often one
+// IP can submit to stop the form being used to send mail to arbitrary people.
+const uploadLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: parseInt(process.env.UPLOAD_RATE_LIMIT_MAX) || 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Too many applications from this network. Please try again later.' }
 });
 
 const fileFilter = (req, file, cb) => {
   const ip = req.ip;
-  
+
   // Check MIME type
   if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
     securityLogger.logFileUpload(file.originalname, 0, ip, false, 'invalid_mime_type');
@@ -85,7 +59,7 @@ const fileFilter = (req, file, cb) => {
     return cb(new Error('Invalid file extension. Allowed: PDF, DOC, DOCX'), false);
   }
 
-  // Prevent directory traversal in filename
+  // Reject path-like filenames (the name is reused as the email attachment name)
   if (file.originalname.includes('..') || file.originalname.includes('/') || file.originalname.includes('\\')) {
     securityLogger.logSuspiciousActivity('directory_traversal_attempt', ip, { filename: file.originalname });
     return cb(new Error('Invalid filename'), false);
@@ -94,8 +68,9 @@ const fileFilter = (req, file, cb) => {
   cb(null, true);
 };
 
+// CVs are held in memory only long enough to email them; nothing is written to disk.
 const upload = multer({
-  storage,
+  storage: multer.memoryStorage(),
   fileFilter,
   limits: {
     fileSize: MAX_FILE_SIZE,
@@ -114,7 +89,7 @@ const uploadValidation = [
     .trim()
     .notEmpty().withMessage('Email is required')
     .isEmail().withMessage('Invalid email format')
-    .normalizeEmail(),
+    .normalizeEmail({ gmail_remove_dots: false }),
   body('phone')
     .trim()
     .notEmpty().withMessage('Phone is required')
@@ -135,12 +110,11 @@ const uploadValidation = [
 ];
 
 // POST /api/upload/cv
-router.post('/cv', (req, res, next) => {
+router.post('/cv', uploadLimiter, (req, res, next) => {
   upload.single('cv')(req, res, (err) => {
     if (err instanceof multer.MulterError) {
-      const ip = req.ip;
       if (err.code === 'LIMIT_FILE_SIZE') {
-        securityLogger.logFileUpload('unknown', MAX_FILE_SIZE + 1, ip, false, 'file_too_large');
+        securityLogger.logFileUpload('unknown', MAX_FILE_SIZE + 1, req.ip, false, 'file_too_large');
         return res.status(400).json({
           error: 'File too large',
           message: `Maximum file size is ${MAX_FILE_SIZE / (1024 * 1024)}MB`
@@ -157,10 +131,6 @@ router.post('/cv', (req, res, next) => {
 }, uploadValidation, async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    // Delete uploaded file if validation fails
-    if (req.file) {
-      await fs.unlink(req.file.path).catch(err => logger.error('Failed to delete file:', err));
-    }
     return res.status(400).json({ errors: errors.array() });
   }
 
@@ -170,10 +140,11 @@ router.post('/cv', (req, res, next) => {
     return res.status(400).json({ error: 'No file uploaded' });
   }
 
+  const { buffer, originalname, size, mimetype } = req.file;
+
   try {
-    if (!(await hasValidSignature(req.file.path, req.file.originalname))) {
-      await fs.unlink(req.file.path).catch(err => logger.error('Failed to delete file:', err));
-      securityLogger.logFileUpload(req.file.originalname, req.file.size, ip, false, 'content_mismatch');
+    if (!hasValidSignature(buffer, originalname)) {
+      securityLogger.logFileUpload(originalname, size, ip, false, 'content_mismatch');
       return res.status(400).json({
         success: false,
         message: 'The file content does not match a PDF, DOC or DOCX document'
@@ -181,69 +152,54 @@ router.post('/cv', (req, res, next) => {
     }
 
     // AV-scan: run a virus/malware scanner before accepting the file
-    const scanResult = await scanFile(req.file.path);
+    const scanResult = await scanFile(buffer);
     if (!scanResult || !scanResult.clean) {
-      // Delete the uploaded file and reject
-      await fs.unlink(req.file.path).catch(err => logger.error('Failed to delete infected file:', err));
-      securityLogger.logFileUpload(req.file.originalname, req.file.size, ip, false, 'av_scan_failed');
+      securityLogger.logFileUpload(originalname, size, ip, false, 'av_scan_failed');
       return res.status(400).json({ success: false, message: 'Uploaded file failed virus scan' });
     }
 
-    const fileInfo = {
-      originalName: req.file.originalname,
-      storedName: req.file.filename,
-      size: req.file.size,
-      mimeType: req.file.mimetype,
-      uploadDate: new Date().toISOString(),
-      applicant: {
-        name: req.body.name,
-        email: req.body.email,
-        phone: req.body.phone,
-        position: req.body.position,
-        experience: req.body.experience,
-        location: req.body.location
-      }
+    const applicant = {
+      name: req.body.name,
+      email: req.body.email,
+      phone: req.body.phone,
+      position: req.body.position,
+      experience: req.body.experience,
+      location: req.body.location
     };
 
-    // Keep applicant contact details out of the logs; they are delivered by email only
-    logger.info('CV uploaded successfully', {
-      storedName: fileInfo.storedName,
-      size: fileInfo.size,
-      mimeType: fileInfo.mimeType,
-      position: fileInfo.applicant.position
-    });
-    securityLogger.logFileUpload(req.file.originalname, req.file.size, ip, true);
+    // The notification email is the only copy of the CV, so wait for it: if it
+    // fails the applicant is told to retry instead of the CV being silently lost.
+    const notification = await sendCVUploadNotification(applicant, buffer, originalname);
+    if (!notification.success) {
+      logger.error('CV notification email failed', { error: notification.error, position: applicant.position });
+      return res.status(502).json({
+        success: false,
+        message: 'We could not submit your application right now. Please try again in a few minutes or email your CV to us directly.'
+      });
+    }
 
-    // Respond immediately; send the notification email in the background so the
-    // browser isn't stuck waiting on an SMTP round trip before it hears back.
+    // Keep applicant contact details out of the logs; they are delivered by email only
+    logger.info('CV submitted and emailed', { size, mimeType: mimetype, position: applicant.position });
+    securityLogger.logFileUpload(originalname, size, ip, true);
+
     res.json({
       success: true,
-      message: 'CV uploaded successfully',
-      fileId: crypto.createHash('sha256').update(req.file.filename).digest('hex').substring(0, 16)
+      message: 'Application submitted successfully. A confirmation email is on its way.'
     });
 
-    sendCVUploadNotification(fileInfo.applicant, req.file.path, req.file.originalname)
-      .then((emailResult) => {
-        if (!emailResult.success) {
-          logger.warn('Email notification failed but upload succeeded', {
-            error: emailResult.error,
-            position: req.body.position
-          });
+    // The confirmation is a courtesy, so it is sent after responding and a
+    // failure here does not affect the (already delivered) application.
+    sendApplicantConfirmation(applicant)
+      .then((result) => {
+        if (!result.success) {
+          logger.warn('Applicant confirmation email failed', { error: result.error, position: applicant.position });
         }
       })
       .catch((error) => {
-        logger.error('Email notification threw unexpectedly', { error: error.message });
-      })
-      .finally(() => {
-        fs.unlink(req.file.path).catch(err => logger.error('Failed to delete file after email send:', err));
+        logger.error('Applicant confirmation email threw unexpectedly', { error: error.message });
       });
-
   } catch (error) {
     logger.error('Upload processing error:', error);
-    // Clean up uploaded file on error
-    if (req.file) {
-      await fs.unlink(req.file.path).catch(err => logger.error('Failed to delete file:', err));
-    }
     res.status(500).json({
       error: 'Upload processing failed',
       message: 'An error occurred while processing your upload'

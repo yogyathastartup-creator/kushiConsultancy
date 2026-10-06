@@ -1,5 +1,4 @@
 import { Resend } from 'resend';
-import { promises as fs } from 'fs';
 import { logger } from './logger.js';
 
 // Resend delivers over HTTPS (port 443), which avoids the outbound SMTP port
@@ -23,6 +22,11 @@ const getClient = () => {
     return cachedClient;
 };
 
+// Lets tests substitute a fake client so no real email is sent
+export const setEmailClient = (client) => {
+    cachedClient = client;
+};
+
 const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
 // Applicant fields come straight from a public form, so never put them into HTML unescaped
@@ -35,10 +39,16 @@ const getFromAddress = () =>
 const getToAddress = () =>
     process.env.MAIL_TO_ADDRESS || process.env.EMAIL_TO || process.env.EMAIL_USER;
 
+// Optional address applicants reach when they reply to their confirmation email
+const getReplyToAddress = () => process.env.MAIL_REPLY_TO || undefined;
+
+// Header values must stay on one line
+const singleLine = (value) => String(value ?? '').replace(/[\r\n]+/g, ' ');
+
 /**
  * Send CV upload notification email
  */
-export const sendCVUploadNotification = async (applicantData, filePath, originalFileName) => {
+export const sendCVUploadNotification = async (applicantData, fileBuffer, originalFileName) => {
     try {
         const resend = getClient();
         const to = getToAddress();
@@ -209,12 +219,11 @@ export const sendCVUploadNotification = async (applicantData, filePath, original
 </html>
     `;
 
-        const fileBuffer = await fs.readFile(filePath);
-
         const { data, error } = await resend.emails.send({
             from: `Kushi Consultancy Portal <${getFromAddress()}>`,
             to,
-            subject: `New CV Submission: ${applicantData.name} - ${applicantData.position}`.replace(/[\r\n]+/g, ' '),
+            replyTo: applicantData.email,
+            subject: singleLine(`New CV Submission: ${applicantData.name} - ${applicantData.position}`),
             html: emailTemplate,
             attachments: [
                 {
@@ -241,6 +250,77 @@ export const sendCVUploadNotification = async (applicantData, filePath, original
             position: applicantData.position
         });
         // Don't throw error - log it but continue
+        return { success: false, error: error.message };
+    }
+};
+
+/**
+ * Send the applicant a confirmation that their application was received
+ */
+export const sendApplicantConfirmation = async (applicantData) => {
+    try {
+        const resend = getClient();
+        const safeName = escapeHtml(applicantData.name);
+        const safePosition = escapeHtml(applicantData.position);
+
+        const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Received</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+    <div style="background: linear-gradient(135deg, #0073b1 0%, #005582 100%); color: white; padding: 24px; text-align: center; border-radius: 8px 8px 0 0;">
+        <h1 style="margin: 0; font-size: 22px;">Application Received</h1>
+        <p style="margin: 8px 0 0 0;">Kushi Civil and Structural Consultancy</p>
+    </div>
+    <div style="background: #f9f9f9; padding: 24px; border: 1px solid #ddd; border-top: none;">
+        <p>Dear ${safeName},</p>
+        <p>Thank you for applying for the <strong>${safePosition}</strong> position with Kushi Consultancy. We have received your application and CV.</p>
+        <p>Our recruitment team will review your profile and contact you within 3-5 business days if it matches a current requirement.</p>
+        <p>Best regards,<br>Recruitment Team<br>Kushi Civil and Structural Consultancy</p>
+    </div>
+    <div style="background: #333; color: white; padding: 16px; text-align: center; border-radius: 0 0 8px 8px; font-size: 12px;">
+        This is an automated confirmation. You received it because this address was used to apply on kushiconsultancy.com.
+    </div>
+</body>
+</html>
+    `;
+
+        const text = [
+            `Dear ${singleLine(applicantData.name)},`,
+            '',
+            `Thank you for applying for the ${singleLine(applicantData.position)} position with Kushi Consultancy. We have received your application and CV.`,
+            '',
+            'Our recruitment team will review your profile and contact you within 3-5 business days if it matches a current requirement.',
+            '',
+            'Best regards,',
+            'Recruitment Team',
+            'Kushi Civil and Structural Consultancy'
+        ].join('\n');
+
+        const { data, error } = await resend.emails.send({
+            from: `Kushi Consultancy <${getFromAddress()}>`,
+            to: applicantData.email,
+            replyTo: getReplyToAddress(),
+            subject: singleLine(`Application received: ${applicantData.position}`),
+            html,
+            text,
+        });
+
+        if (error) {
+            throw new Error(error.message || JSON.stringify(error));
+        }
+
+        logger.info('Applicant confirmation email sent', { messageId: data?.id, position: applicantData.position });
+        return { success: true, messageId: data?.id };
+    } catch (error) {
+        logger.error('Failed to send applicant confirmation email', {
+            error: error.message,
+            position: applicantData.position
+        });
         return { success: false, error: error.message };
     }
 };

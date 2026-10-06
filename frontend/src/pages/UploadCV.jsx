@@ -228,12 +228,12 @@ const UploadCV = () => {
             {uploadMethod === 'form' && cvUploadEnabled && (
                 <div className="upload-form-container">
                     <div className="security-notice">
-                        <p>🔒 Your data is transmitted securely and stored with enterprise-grade protection.</p>
+                        <p>🔒 Your CV is sent securely to our recruitment team by email and is not stored on this website.</p>
                     </div>
 
                     {success && (
                         <div className="success-message">
-                            ✅ Your application has been submitted successfully! We'll review it and contact you within 3-5 business days.
+                            ✅ Your application has been submitted successfully! A confirmation email is on its way to you. We'll review your profile and contact you within 3-5 business days.
                         </div>
                     )}
 

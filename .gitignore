@@ -56,3 +56,6 @@ backend/logs/
 cookies.txt
 replacements.txt
 *.cookies.txt
+
+# Build output in the frontend package
+frontend/dist/

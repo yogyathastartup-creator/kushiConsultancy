@@ -12,10 +12,36 @@ process.env.ADMIN_USERNAME = ADMIN_USER;
 process.env.ADMIN_PASSWORD = ADMIN_PASS;
 process.env.JWT_SECRET = randomValue();
 process.env.CORS_ORIGINS = 'https://staging.example.com';
+process.env.MAIL_TO_ADDRESS = 'recruitment@example.com';
+process.env.MAIL_FROM_ADDRESS = 'noreply@example.com';
+process.env.UPLOAD_RATE_LIMIT_MAX = '1000';
 delete process.env.RESEND_API_KEY;
 
 const { default: app } = await import('../app.js');
-const { escapeHtml } = await import('../utils/emailService.js');
+const { escapeHtml, setEmailClient } = await import('../utils/emailService.js');
+
+// Fake Resend client: records every email instead of sending it
+const sentEmails = [];
+let failNextSendTo = null;
+setEmailClient({
+  emails: {
+    send: async (message) => {
+      if (failNextSendTo && message.to === failNextSendTo) {
+        failNextSendTo = null;
+        return { data: null, error: { message: 'simulated outage' } };
+      }
+      sentEmails.push(message);
+      return { data: { id: `email-${sentEmails.length}` }, error: null };
+    }
+  }
+});
+
+// The applicant confirmation is sent after the response, so give it a moment
+const waitForEmails = async (count) => {
+  for (let i = 0; i < 50 && sentEmails.length < count; i++) {
+    await new Promise(resolve => setTimeout(resolve, 10));
+  }
+};
 
 let server;
 let baseUrl;
@@ -180,6 +206,78 @@ describe('CV upload', () => {
     const body = await res.json();
     assert.equal(res.status, 200, JSON.stringify(body));
     assert.equal(body.success, true);
+  });
+
+  test('emails the CV to recruitment and a confirmation to the applicant', async () => {
+    sentEmails.length = 0;
+    const res = await fetch(`${baseUrl}/api/upload/cv`, {
+      method: 'POST',
+      body: cvForm(pdfBytes, 'resume.pdf', 'application/pdf', { email: 'Asha.Kumar@Example.com' })
+    });
+    assert.equal(res.status, 200);
+    await waitForEmails(2);
+    assert.equal(sentEmails.length, 2);
+
+    const [notification, confirmation] = sentEmails;
+    assert.equal(notification.to, 'recruitment@example.com');
+    assert.equal(notification.replyTo, 'asha.kumar@example.com');
+    assert.equal(notification.attachments.length, 1);
+    assert.equal(notification.attachments[0].filename, 'resume.pdf');
+    assert.ok(Buffer.from(notification.attachments[0].content).equals(pdfBytes));
+
+    assert.equal(confirmation.to, 'asha.kumar@example.com');
+    assert.match(confirmation.subject, /Application received: Structural Engineer/);
+    assert.match(confirmation.html, /Dear Asha Kumar/);
+    assert.equal(confirmation.attachments, undefined);
+  });
+
+  test('escapes applicant text in both emails', async () => {
+    sentEmails.length = 0;
+    const res = await fetch(`${baseUrl}/api/upload/cv`, {
+      method: 'POST',
+      body: cvForm(pdfBytes, 'resume.pdf', 'application/pdf', { position: '<a href="https://evil.example">Click</a>' })
+    });
+    assert.equal(res.status, 200);
+    await waitForEmails(2);
+    for (const email of sentEmails) {
+      assert.doesNotMatch(email.html, /<a href="https:\/\/evil/);
+    }
+  });
+
+  test('reports failure and sends no confirmation when the CV email cannot be sent', async () => {
+    sentEmails.length = 0;
+    failNextSendTo = 'recruitment@example.com';
+    const res = await fetch(`${baseUrl}/api/upload/cv`, {
+      method: 'POST',
+      body: cvForm(pdfBytes, 'resume.pdf', 'application/pdf')
+    });
+    assert.equal(res.status, 502);
+    assert.equal((await res.json()).success, false);
+    await new Promise(resolve => setTimeout(resolve, 50));
+    assert.equal(sentEmails.length, 0);
+  });
+
+  test('still succeeds when only the confirmation email fails', async () => {
+    sentEmails.length = 0;
+    failNextSendTo = 'asha@example.com';
+    const res = await fetch(`${baseUrl}/api/upload/cv`, {
+      method: 'POST',
+      body: cvForm(pdfBytes, 'resume.pdf', 'application/pdf')
+    });
+    assert.equal(res.status, 200);
+    await waitForEmails(1);
+    assert.equal(sentEmails.length, 1);
+    assert.equal(sentEmails[0].to, 'recruitment@example.com');
+  });
+
+  test('rejected uploads send no email', async () => {
+    sentEmails.length = 0;
+    await fetch(`${baseUrl}/api/upload/cv`, {
+      method: 'POST',
+      body: cvForm(Buffer.from('not a pdf'), 'resume.pdf', 'application/pdf')
+    });
+    await new Promise(resolve => setTimeout(resolve, 50));
+    assert.equal(sentEmails.length, 0);
   });
 
   test('accepts a valid DOCX', async () => {

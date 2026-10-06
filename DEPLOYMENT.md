@@ -10,24 +10,14 @@ Zoho only holds the DNS records; it does not host the site.
 
 ## 0. Before you deploy
 
-1. Merge this branch into `main` after the checks pass:
-   ```bash
-   cd backend  && npm ci && npm run lint && npm test
-   cd frontend && npm ci && npm run lint && npm test && npm run build
-   ```
-2. Fix the dependency vulnerabilities (`npm audit` reports 31 in the backend and 14 in the frontend; all have non-breaking fixes):
-   ```bash
-   cd backend  && npm uninstall @aws-sdk/client-s3 @aws-sdk/s3-request-presigner && npm audit fix
-   cd frontend && npm audit fix
-   ```
-   Re-run the checks above and commit the updated lockfiles.
-3. Remove files that must not be in the repository:
-   ```bash
-   git rm -r --cached frontend/dist backend/uploads
-   git rm package.json package-lock.json   # unused root package (only listed firebase)
-   ```
-   Then add `frontend/dist/` and `backend/uploads/` to `.gitignore` (the existing `/dist` and `/uploads/` rules only match the repository root).
-   `backend/uploads/` contains a real applicant's CV. Removing it from the latest commit does not remove it from Git history, so rewrite history (e.g. `git filter-repo --path backend/uploads --invert-paths`) or make the repository private.
+Run the checks and make sure they pass:
+
+```bash
+cd backend  && npm ci && npm run lint && npm test
+cd frontend && npm ci && npm run lint && npm test && npm run build
+```
+
+A real applicant's CV was committed in `backend/uploads/` in earlier history. It is removed from the current code, but it is still in older commits, so keep the repository **private** (GitHub → Settings → General → Danger Zone → Change visibility), or rewrite history with `git filter-repo --path backend/uploads --invert-paths` and force-push.
 
 ## 1. Render (backend)
 
@@ -42,6 +32,7 @@ Dashboard → your service → **Environment**. Set:
 | `RESEND_API_KEY` | from resend.com |
 | `MAIL_FROM_ADDRESS` | `noreply@kushiconsultancy.com` |
 | `MAIL_TO_ADDRESS` | the inbox that should receive CVs |
+| `MAIL_REPLY_TO` | optional: where applicants' replies to their confirmation email go (e.g. `madhu@kushiconsultancy.com`) |
 
 Service settings: **Root Directory** `backend`, **Build Command** `npm ci`, **Start Command** `npm start`, **Health Check Path** `/api/health`.
 
@@ -72,7 +63,12 @@ Do not touch existing `MX`/`TXT` records if you already use Zoho Mail.
 
 ## 4. Resend (email)
 
-The backend sends from `noreply@kushiconsultancy.com`. Resend only allows that once the domain is verified.
+Each CV submission sends two emails from `noreply@kushiconsultancy.com`:
+
+- **To you** (`MAIL_TO_ADDRESS`): the applicant's details with the CV attached. Hitting Reply answers the applicant directly.
+- **To the applicant**: a confirmation that their application was received.
+
+CVs are never saved on the server, so the email to you is the only copy. If that email fails, the applicant sees an error and can retry. Until the domain is verified, Resend only delivers to your own Resend account address, so applicants will not receive confirmations.
 
 1. resend.com → **Domains → Add Domain** → `kushiconsultancy.com`. Pick the region closest to you.
 2. Resend shows several DNS records (an `MX` and a `TXT` on a `send` subdomain, and a DKIM `TXT` on `resend._domainkey`). Add each one in Zoho **Manage Records** exactly as shown.
@@ -91,7 +87,7 @@ To serve the backend as `api.kushiconsultancy.com` instead of through the Netlif
 
 - [ ] `https://kushiconsultancy.com` and `https://www.kushiconsultancy.com` load with a padlock
 - [ ] `https://kushiconsultancy.com/api/health` returns `{"status":"OK"}`
-- [ ] Submit a test CV from `/upload-cv` and confirm the email arrives with the attachment
+- [ ] Submit a test CV from `/upload-cv` using a different email address: the CV email arrives with the attachment, and that address gets the confirmation
 - [ ] Log in at `/admin/login`, reload the dashboard (session persists), then log out
 - [ ] Footer shows a contact email that actually receives mail
 - [ ] Test on a phone: no sideways scrolling, banner fully visible
