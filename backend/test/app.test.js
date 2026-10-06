@@ -1,10 +1,16 @@
 import { test, describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
+import { randomBytes } from 'node:crypto';
 
 process.env.NODE_ENV = 'test';
-process.env.ADMIN_USERNAME = 'admin';
-process.env.ADMIN_PASSWORD = 'correct-horse-battery';
-process.env.JWT_SECRET = 'test-secret';
+// Credentials are generated per run so no password-like literal lives in the repository
+const randomValue = () => randomBytes(12).toString('hex');
+const ADMIN_USER = 'admin';
+const ADMIN_PASS = randomValue();
+
+process.env.ADMIN_USERNAME = ADMIN_USER;
+process.env.ADMIN_PASSWORD = ADMIN_PASS;
+process.env.JWT_SECRET = randomValue();
 process.env.CORS_ORIGINS = 'https://staging.example.com';
 delete process.env.RESEND_API_KEY;
 
@@ -99,7 +105,7 @@ describe('authentication', () => {
   });
 
   test('rejects wrong password', async () => {
-    const res = await login('admin', 'wrong-password');
+    const res = await login(ADMIN_USER, randomValue());
     assert.equal(res.status, 401);
   });
 
@@ -113,7 +119,7 @@ describe('authentication', () => {
   });
 
   test('login, verify, logout round trip', async () => {
-    const res = await login('admin', 'correct-horse-battery');
+    const res = await login(ADMIN_USER, ADMIN_PASS);
     assert.equal(res.status, 200);
     const setCookie = res.headers.get('set-cookie');
     assert.match(setCookie, /accessToken=/);
@@ -122,7 +128,7 @@ describe('authentication', () => {
 
     const verify = await fetch(`${baseUrl}/api/auth/verify`, { headers: { Cookie: cookie } });
     assert.equal(verify.status, 200);
-    assert.deepEqual((await verify.json()).user, { username: 'admin', role: 'admin' });
+    assert.deepEqual((await verify.json()).user, { username: ADMIN_USER, role: 'admin' });
 
     const logout = await fetch(`${baseUrl}/api/auth/logout`, { method: 'POST', headers: { Cookie: cookie } });
     assert.equal(logout.status, 200);
@@ -139,11 +145,12 @@ describe('authentication', () => {
 
   test('supports a bcrypt-hashed ADMIN_PASSWORD', async () => {
     const { default: bcrypt } = await import('bcrypt');
-    const original = process.env.ADMIN_PASSWORD;
-    process.env.ADMIN_PASSWORD = await bcrypt.hash('hashed-secret', 4);
+    const original = ADMIN_PASS;
+    const plain = randomValue();
+    process.env.ADMIN_PASSWORD = await bcrypt.hash(plain, 4);
     try {
-      assert.equal((await login('admin', 'hashed-secret')).status, 200);
-      assert.equal((await login('admin', 'nope')).status, 401);
+      assert.equal((await login(ADMIN_USER, plain)).status, 200);
+      assert.equal((await login(ADMIN_USER, randomValue())).status, 401);
     } finally {
       process.env.ADMIN_PASSWORD = original;
     }
