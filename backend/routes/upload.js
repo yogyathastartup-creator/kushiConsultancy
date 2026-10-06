@@ -3,15 +3,11 @@ import multer from 'multer';
 import path from 'path';
 import { promises as fs } from 'fs';
 import crypto from 'crypto';
-import { fileURLToPath } from 'url';
 import os from 'os';
 import { body, validationResult } from 'express-validator';
 import { logger, securityLogger } from '../utils/logger.js';
 import { sendCVUploadNotification } from '../utils/emailService.js';
 import { scanFile } from '../utils/avScanner.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
@@ -34,6 +30,30 @@ const ALLOWED_MIME_TYPES = (process.env.ALLOWED_FILE_TYPES ||
   'application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document')
   .split(',');
 
+// Leading bytes of each allowed format: PDF, legacy Word (OLE2), and DOCX (ZIP)
+const FILE_SIGNATURES = {
+  '.pdf': [Buffer.from('%PDF')],
+  '.doc': [Buffer.from([0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1])],
+  '.docx': [Buffer.from([0x50, 0x4b, 0x03, 0x04])]
+};
+
+// The browser-supplied MIME type and extension are attacker controlled, so
+// confirm the file content actually starts like the format it claims to be.
+const hasValidSignature = async (filePath, originalName) => {
+  const signatures = FILE_SIGNATURES[path.extname(originalName).toLowerCase()];
+  if (!signatures) {
+    return false;
+  }
+  const handle = await fs.open(filePath, 'r');
+  try {
+    const header = Buffer.alloc(8);
+    const { bytesRead } = await handle.read(header, 0, header.length, 0);
+    return signatures.some(sig => bytesRead >= sig.length && header.subarray(0, sig.length).equals(sig));
+  } finally {
+    await handle.close();
+  }
+};
+
 // Configure multer for secure file uploads
 const storage = multer.diskStorage({
   destination: async (req, file, cb) => {
@@ -49,7 +69,7 @@ const storage = multer.diskStorage({
 });
 
 const fileFilter = (req, file, cb) => {
-  const ip = req.ip || req.connection.remoteAddress;
+  const ip = req.ip;
   
   // Check MIME type
   if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
@@ -118,7 +138,7 @@ const uploadValidation = [
 router.post('/cv', (req, res, next) => {
   upload.single('cv')(req, res, (err) => {
     if (err instanceof multer.MulterError) {
-      const ip = req.ip || req.connection.remoteAddress;
+      const ip = req.ip;
       if (err.code === 'LIMIT_FILE_SIZE') {
         securityLogger.logFileUpload('unknown', MAX_FILE_SIZE + 1, ip, false, 'file_too_large');
         return res.status(400).json({
@@ -144,14 +164,22 @@ router.post('/cv', (req, res, next) => {
     return res.status(400).json({ errors: errors.array() });
   }
 
-  const ip = req.ip || req.connection.remoteAddress;
+  const ip = req.ip;
 
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
   }
 
   try {
-    // Additional security: verify file content matches MIME type
+    if (!(await hasValidSignature(req.file.path, req.file.originalname))) {
+      await fs.unlink(req.file.path).catch(err => logger.error('Failed to delete file:', err));
+      securityLogger.logFileUpload(req.file.originalname, req.file.size, ip, false, 'content_mismatch');
+      return res.status(400).json({
+        success: false,
+        message: 'The file content does not match a PDF, DOC or DOCX document'
+      });
+    }
+
     // AV-scan: run a virus/malware scanner before accepting the file
     const scanResult = await scanFile(req.file.path);
     if (!scanResult || !scanResult.clean) {
@@ -177,8 +205,13 @@ router.post('/cv', (req, res, next) => {
       }
     };
 
-    // Store metadata in database (for now, log it)
-    logger.info('CV uploaded successfully', fileInfo);
+    // Keep applicant contact details out of the logs; they are delivered by email only
+    logger.info('CV uploaded successfully', {
+      storedName: fileInfo.storedName,
+      size: fileInfo.size,
+      mimeType: fileInfo.mimeType,
+      position: fileInfo.applicant.position
+    });
     securityLogger.logFileUpload(req.file.originalname, req.file.size, ip, true);
 
     // Respond immediately; send the notification email in the background so the
@@ -194,7 +227,7 @@ router.post('/cv', (req, res, next) => {
         if (!emailResult.success) {
           logger.warn('Email notification failed but upload succeeded', {
             error: emailResult.error,
-            applicant: req.body.name
+            position: req.body.position
           });
         }
       })
@@ -215,24 +248,6 @@ router.post('/cv', (req, res, next) => {
       error: 'Upload processing failed',
       message: 'An error occurred while processing your upload'
     });
-  }
-});
-
-// GET /api/upload/download/:fileId (protected route - requires auth)
-router.get('/download/:fileId', async (req, res) => {
-  // In production, verify JWT token here
-  const { fileId } = req.params;
-  
-  try {
-    // In production: lookup file by ID in database, verify permissions
-    // For now, this is a placeholder
-    res.status(501).json({
-      error: 'Not implemented',
-      message: 'File download requires admin authentication'
-    });
-  } catch (error) {
-    logger.error('Download error:', error);
-    res.status(500).json({ error: 'Download failed' });
   }
 });
 

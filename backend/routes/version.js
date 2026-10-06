@@ -8,7 +8,7 @@ const __dirname = path.dirname(__filename);
 
 const router = express.Router();
 
-// GET /api/version - mimic Java build-info endpoint
+// GET /api/version - build info
 router.get('/', (req, res) => {
   try {
     const pkgPath = path.join(__dirname, '..', 'package.json');
@@ -20,7 +20,7 @@ router.get('/', (req, res) => {
       timestamp: new Date().toISOString(),
       epochSeconds: Math.floor(Date.now() / 1000)
     });
-  } catch (err) {
+  } catch {
     res.status(500).json({ success: false, error: 'Version read failed' });
   }
 });

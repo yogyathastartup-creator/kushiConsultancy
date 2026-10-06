@@ -4,7 +4,7 @@ const API_BASE_URL = getApiUrl();
 
 export const API_ENDPOINTS = {
   LOGIN: `${API_BASE_URL}/auth/login`,
-  UPLOAD_CV: `${API_BASE_URL}/api/upload/cv`,
+  UPLOAD_CV: `${API_BASE_URL}/upload/cv`,
   SEND_EMAIL: `${API_BASE_URL}/email/send`,
 };
 
@@ -22,6 +22,9 @@ export const RECRUITMENT_AREAS = [
   'Firefighting Pipeline Engineering',
   'Oil & Natural Gas Engineering',
 ];
+
+// Public contact address shown on the site; override with VITE_CONTACT_EMAIL
+export const CONTACT_EMAIL = import.meta.env.VITE_CONTACT_EMAIL || 'madhu@kushiconsultancy.com';
 
 export const CONTACT_INFO = {
   ADDRESS: '123 Kushi Consultancy St, City, Country',

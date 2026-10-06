@@ -1,83 +1,71 @@
 # Kushi Consultancy
 
-Welcome to the Kushi Consultancy project — a React + Vite single-page application that supports recruitment workflows and CV uploads.
+Website for Kushi Civil and Structural Consultancy: a React + Vite single-page site with an Express API for CV uploads and the admin panel.
 
-## Project Structure (high level)
+## Project Structure
 
-- `src/` — React application code
-
-- `server/` — Express API and server-side utilities
-
-- `public/` — static assets
-
-- `package.json` — scripts and dependencies
+- `frontend/` — React + Vite site (deployed to Netlify)
+- `backend/` — Express API: admin login, CV upload, email notifications via Resend (deployed to Render)
+- `netlify.toml` — Netlify build settings and security headers
+- `frontend/public/_redirects` — proxies `/api/*` to the Render backend and enables SPA routing
+- `DEPLOYMENT.md` — step-by-step guide to going live on kushiconsultancy.com
 
 ## Quick Start
 
-1. Install dependencies:
+Requires Node.js 20.19 or newer.
 
-   ```bash
-   npm install
-   ```
+```bash
+# Backend (terminal 1)
+cd backend
+cp .env.example .env   # then fill in the values
+npm install
+npm run dev            # http://localhost:3001
 
-2. Start frontend (Vite):
+# Frontend (terminal 2)
+cd frontend
+npm install
+npm run dev            # http://localhost:5174
+```
 
-   ```bash
-   npm run dev
-   ```
+## Checks
 
-3. Start server (separate terminal):
+Run these before every deploy:
 
-   ```bash
-   npm run dev:server
-   ```
-
-## Admin account — create/update (bcrypt)
-
-The server no longer uses MongoDB for admin credentials. Ensure all credentials are managed securely using environment variables or other secure storage solutions.
-
-## Security
-
-- Use strong secrets for `JWT_SECRET` and related environment variables.
-
-- Remove any references to `MONGODB_URI` from your environment variables.
-
-## Features
-
-- **Authentication**: Secure login and session management.
-
-- **File Uploads**: Upload CVs with validation.
-
-- **Email Notifications**: Automated email services.
-
-- **Health Check Endpoint**: Monitor server status.
+```bash
+cd backend  && npm run lint && npm test
+cd frontend && npm run lint && npm test && npm run build
+```
 
 ## Environment Variables
 
-### Server-Side Variables
+### Backend (`backend/.env`, or the Render dashboard)
 
-- `PORT`: Port number for the server (default: 3001).
+| Variable | Required | Purpose |
+| --- | --- | --- |
+| `NODE_ENV` | yes (prod) | Set to `production` on Render |
+| `ADMIN_USERNAME` | yes | Admin panel username |
+| `ADMIN_PASSWORD` | yes | Admin password; a bcrypt hash (`$2b$...`) is recommended |
+| `JWT_SECRET` | yes | Long random string used to sign login sessions |
+| `RESEND_API_KEY` | yes | API key from resend.com for CV notification emails |
+| `MAIL_FROM_ADDRESS` | yes | Sender, on a domain verified in Resend (e.g. `noreply@kushiconsultancy.com`) |
+| `MAIL_TO_ADDRESS` | yes | Inbox that receives CV submissions |
+| `CORS_ORIGINS` | no | Extra allowed origins, comma-separated (the production domains are built in) |
+| `RATE_LIMIT_WINDOW_MS`, `RATE_LIMIT_MAX_REQUESTS` | no | Global rate limit (default 1000 requests / 15 min per IP) |
 
-- `JWT_SECRET`: Secret key for JWT authentication.
+Generate a bcrypt hash for `ADMIN_PASSWORD`:
 
-- `JWT_REFRESH_SECRET`: Secret key for JWT refresh tokens.
+```bash
+cd backend && node -e "require('bcrypt').hash(process.argv[1], 12).then(console.log)" 'your-password'
+```
 
-- `EMAIL_USER`: Email service username.
+### Frontend (Netlify dashboard → Site configuration → Environment variables)
 
-- `EMAIL_PASSWORD`: Email service password.
+| Variable | Purpose |
+| --- | --- |
+| `VITE_API_URL` | API base URL. Use `/api` in production so requests go through the Netlify proxy |
+| `VITE_CONTACT_EMAIL` | Public contact email (defaults to `madhu@kushiconsultancy.com`) |
 
-- `CORS_ORIGINS`: Comma-separated list of allowed origins for CORS.
+## Known Limitations
 
-### Client-Side Variables
-
-- `VITE_API_URL`: Base URL for API endpoints.
-
-## Deployment
-
-1. Deploy the project to Vercel:
-
-   ```bash
-   vercel
-   ```
-
-2. Ensure all environment variables are configured in the Vercel dashboard.
+- **Admin dashboard edits are stored in the admin's browser (`localStorage`)**, not on the server, so content changes made in the dashboard are only visible on that one browser. Publishing edits to all visitors needs a database-backed content API.
+- The upload virus scan (`backend/utils/avScanner.js`) is a stub; uploaded files are type-checked by content but not scanned for malware.

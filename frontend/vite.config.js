@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/', // Ensure correct base path for Vercel
+  base: '/',
   server: {
     port: 5174,
     host: '0.0.0.0', // Expose to network
@@ -16,8 +16,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom'],
-          'validation': ['validator', 'dompurify', 'isomorphic-dompurify']
+          'react-vendor': ['react', 'react-dom', 'react-router-dom']
         }
       }
     },

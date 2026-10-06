@@ -1,4 +1,5 @@
 import React from 'react';
+import { CONTACT_EMAIL } from '../utils/constants';
 import '../styles/Footer.css';
 
 const Footer = () => {
@@ -7,7 +8,7 @@ const Footer = () => {
             <div className="footer-content">
                 <div className="footer-section">
                     <h3>Contact Us</h3>
-                    <p>📧 Email: {import.meta.env.VITE_CONTACT_EMAIL || '***REMOVED***'}</p>
+                    <p>📧 Email: <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a></p>
                     <p>📞 Phone: +91 93619 70260</p>
                     <p>📱 Mobile: +91 96770 54461</p>
                 </div>

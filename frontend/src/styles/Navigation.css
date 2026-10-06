@@ -41,3 +41,19 @@
     padding-right: 2rem;
 }
 
+
+/* Phones: let the links scroll sideways instead of widening the page */
+@media (max-width: 768px) {
+    .navigation ul {
+        justify-content: flex-start;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    .navigation a {
+        padding: 0 0.9rem;
+        font-size: 0.95rem;
+        white-space: nowrap;
+    }
+}

@@ -23,6 +23,12 @@ const getClient = () => {
     return cachedClient;
 };
 
+const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+// Applicant fields come straight from a public form, so never put them into HTML unescaped
+export const escapeHtml = (value) =>
+    String(value ?? '').replace(/[&<>"']/g, char => HTML_ESCAPES[char]);
+
 const getFromAddress = () =>
     process.env.MAIL_FROM_ADDRESS || process.env.EMAIL_FROM || 'noreply@kushiconsultancy.com';
 
@@ -41,6 +47,11 @@ export const sendCVUploadNotification = async (applicantData, filePath, original
             logger.error(msg);
             return { success: false, error: msg };
         }
+
+        const safe = Object.fromEntries(
+            Object.entries(applicantData).map(([key, value]) => [key, escapeHtml(value)])
+        );
+        const safeFileName = escapeHtml(originalFileName);
 
         const emailTemplate = `
 <!DOCTYPE html>
@@ -138,39 +149,39 @@ export const sendCVUploadNotification = async (applicantData, filePath, original
 
             <div class="info-row">
                 <span class="info-label">👤 Full Name:</span>
-                <span class="info-value">${applicantData.name}</span>
+                <span class="info-value">${safe.name}</span>
             </div>
 
             <div class="info-row">
                 <span class="info-label">📧 Email:</span>
-                <span class="info-value"><a href="mailto:${applicantData.email}">${applicantData.email}</a></span>
+                <span class="info-value"><a href="mailto:${safe.email}">${safe.email}</a></span>
             </div>
 
             <div class="info-row">
                 <span class="info-label">📱 Phone:</span>
-                <span class="info-value"><a href="tel:${applicantData.phone}">${applicantData.phone}</a></span>
+                <span class="info-value"><a href="tel:${safe.phone}">${safe.phone}</a></span>
             </div>
 
             <div class="info-row">
                 <span class="info-label">💼 Position Applied:</span>
-                <span class="info-value">${applicantData.position}</span>
+                <span class="info-value">${safe.position}</span>
             </div>
 
             <div class="info-row">
                 <span class="info-label">⏱️ Experience:</span>
-                <span class="info-value">${applicantData.experience}</span>
+                <span class="info-value">${safe.experience}</span>
             </div>
 
             <div class="info-row">
                 <span class="info-label">📍 Location:</span>
-                <span class="info-value">${applicantData.location}</span>
+                <span class="info-value">${safe.location}</span>
             </div>
         </div>
 
         <div class="file-info">
             <div class="file-icon">📄</div>
             <strong>Resume/CV Attached</strong><br>
-            <span style="color: #666; font-size: 14px;">${originalFileName}</span>
+            <span style="color: #666; font-size: 14px;">${safeFileName}</span>
         </div>
 
         <p style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; border-radius: 4px; margin: 20px 0;">
@@ -203,7 +214,7 @@ export const sendCVUploadNotification = async (applicantData, filePath, original
         const { data, error } = await resend.emails.send({
             from: `Kushi Consultancy Portal <${getFromAddress()}>`,
             to,
-            subject: `New CV Submission: ${applicantData.name} - ${applicantData.position}`,
+            subject: `New CV Submission: ${applicantData.name} - ${applicantData.position}`.replace(/[\r\n]+/g, ' '),
             html: emailTemplate,
             attachments: [
                 {
@@ -220,14 +231,14 @@ export const sendCVUploadNotification = async (applicantData, filePath, original
         logger.info('CV notification email sent successfully', {
             messageId: data?.id,
             recipient: to,
-            applicant: applicantData.name
+            position: applicantData.position
         });
         return { success: true, messageId: data?.id };
     } catch (error) {
         logger.error('Failed to send CV notification email', {
             error: error.message,
             stack: error.stack,
-            applicant: applicantData.name
+            position: applicantData.position
         });
         // Don't throw error - log it but continue
         return { success: false, error: error.message };
