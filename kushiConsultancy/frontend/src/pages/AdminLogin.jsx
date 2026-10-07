@@ -81,7 +81,6 @@ const AdminLogin = () => {
                 throw new Error('Server returned non-JSON response');
             }
         } catch (err) {
-            console.error('Login error:', err);
             setError(err.message || 'Network error. Please ensure the server is running.');
         } finally {
             setLoading(false);

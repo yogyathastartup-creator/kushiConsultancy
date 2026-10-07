@@ -82,7 +82,6 @@ const AdminDashboard = () => {
                 
                 loadAllContent();
             } catch (error) {
-                console.error('Auth verification failed:', error);
                 const isAdminLoggedIn = sessionStorage.getItem('adminLoggedIn');
                 if (!isAdminLoggedIn) {
                     navigate('/admin/login');
@@ -257,7 +256,7 @@ const AdminDashboard = () => {
                 credentials: 'include'
             });
         } catch (error) {
-            console.error('Logout error:', error);
+            // logout silently
         }
         
         sessionStorage.removeItem('adminLoggedIn');

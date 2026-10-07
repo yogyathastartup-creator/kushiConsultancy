@@ -175,18 +175,14 @@ const UploadCV = () => {
             });
 
             const contentType = response.headers.get('Content-Type');
-            console.log('Response Content-Type:', contentType);
-            
+
             let result;
             if (contentType && contentType.includes('application/json')) {
                 result = await response.json();
             } else {
-                const text = await response.text();
-                console.error('Non-JSON response:', text);
+                await response.text();
                 throw new Error('Server returned invalid response');
             }
-
-            console.log('Upload result:', result);
 
             if (response.ok && result.success) {
                 setSuccess(true);
@@ -198,7 +194,6 @@ const UploadCV = () => {
                 setErrors({ submit: result.message || result.error || 'Upload failed. Please try again.' });
             }
         } catch (error) {
-            console.error('Upload error:', error);
             setErrors({ submit: 'Network error. Please ensure the server is running or use the email method below.' });
         } finally {
             setLoading(false);
