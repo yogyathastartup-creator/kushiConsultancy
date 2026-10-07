@@ -1,1 +1,0 @@
-function i(){const t="/api";return(t.trim().length>0?t.trim():"http://localhost:3002/api").replace(/\/$/,"")}function n(t="init"){console.log(`[api] (${t}) using API base:`,i())}export{i as g,n as l};
