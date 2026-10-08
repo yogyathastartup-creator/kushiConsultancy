@@ -276,6 +276,29 @@
     font-weight: 500;
 }
 
+/* Extraction Status Messages */
+.extraction-warning {
+    background: #fff3cd;
+    border: 1px solid #ffeeba;
+    border-left: 4px solid #ffc107;
+    color: #856404;
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+    font-size: 0.95rem;
+}
+
+.extraction-info {
+    background: #d1ecf1;
+    border: 1px solid #bee5eb;
+    border-left: 4px solid #17a2b8;
+    color: #0c5460;
+    padding: 0.75rem 1rem;
+    border-radius: 4px;
+    margin-top: 0.5rem;
+    font-size: 0.95rem;
+}
+
 /* Form Container */
 .upload-form-container {
     background: white;

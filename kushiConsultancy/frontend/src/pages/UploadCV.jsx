@@ -24,6 +24,7 @@ const UploadCV = () => {
     const [uploadMethod, setUploadMethod] = useState('form'); // 'form' or 'email'
     const [cvUploadEnabled, setCvUploadEnabled] = useState(true);
     const [parsing, setParsing] = useState(false);
+    const [extractionMessage, setExtractionMessage] = useState('');
 
     // Load saved form data from localStorage on mount
     React.useEffect(() => {
@@ -106,16 +107,24 @@ const UploadCV = () => {
                 setFile(selectedFile);
                 setErrors(prev => ({ ...prev, file: '' }));
 
-                // Parse CV to extract email and name
+                // Parse CV to extract email, name, and phone
                 setParsing(true);
                 const extracted = await parseCVFile(selectedFile);
                 setParsing(false);
 
-                if (extracted.email || extracted.name) {
+                // Show extraction status message
+                if (extracted.message) {
+                    setExtractionMessage(extracted.message);
+                } else {
+                    setExtractionMessage('');
+                }
+
+                if (extracted.email || extracted.name || extracted.phone) {
                     setFormData(prev => ({
                         ...prev,
                         email: extracted.email || prev.email,
-                        name: extracted.name || prev.name
+                        name: extracted.name || prev.name,
+                        phone: extracted.phone || prev.phone
                     }));
 
                     // Save to localStorage for persistence
@@ -289,8 +298,18 @@ const UploadCV = () => {
                             />
                             <p className="file-hint">Accepted formats: PDF, DOC, DOCX (Max 5MB)</p>
                             {file && <p className="file-selected">✓ Selected: {file.name}</p>}
+                            {parsing && <p className="file-hint">📄 Parsing file and extracting information...</p>}
+                            {extractionMessage && (
+                                <div className={`extraction-${extractionMessage.includes('Unable') || extractionMessage.includes('Could not') ? 'warning' : 'info'}`}>
+                                    {extractionMessage.includes('Unable') || extractionMessage.includes('Could not') ? '⚠️' : 'ℹ️'} {extractionMessage}
+                                </div>
+                            )}
                             {errors.file && <span className="error-text">{errors.file}</span>}
                         </div>
+
+                        <p className="form-hint" style={{ marginTop: '-1rem', marginBottom: '1rem', fontSize: '0.9rem', color: '#666' }}>
+                            ✏️ Please review and edit any auto-filled information if needed.
+                        </p>
 
                         <div className="form-row">
                             <div className="form-group">
