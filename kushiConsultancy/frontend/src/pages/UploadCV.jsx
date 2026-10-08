@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { getApiUrl, logApiResolution } from '../utils/api';
 import { useLocation } from 'react-router-dom';
 import { validateFile, validateEmail, validatePhone, validateTextInput, sanitizeInput } from '../utils/validation';
+import { parseCVFile } from '../utils/cvParser';
 import useContactInfo from '../hooks/useContactInfo';
 import '../styles/UploadCV.css';
 
@@ -14,9 +15,7 @@ const UploadCV = () => {
         name: '',
         email: '',
         phone: '',
-        position: '',
-        experience: '',
-        location: ''
+        position: ''
     });
     const [file, setFile] = useState(null);
     const [errors, setErrors] = useState({});
@@ -24,6 +23,24 @@ const UploadCV = () => {
     const [success, setSuccess] = useState(false);
     const [uploadMethod, setUploadMethod] = useState('form'); // 'form' or 'email'
     const [cvUploadEnabled, setCvUploadEnabled] = useState(true);
+    const [parsing, setParsing] = useState(false);
+
+    // Load saved form data from localStorage on mount
+    React.useEffect(() => {
+        const savedData = localStorage.getItem('cvFormData');
+        if (savedData) {
+            try {
+                const parsedData = JSON.parse(savedData);
+                setFormData(prev => ({
+                    ...prev,
+                    name: parsedData.name || '',
+                    email: parsedData.email || ''
+                }));
+            } catch (error) {
+                console.error('Error loading saved form data:', error);
+            }
+        }
+    }, []);
 
     // Check if CV upload is enabled
     React.useEffect(() => {
@@ -77,17 +94,37 @@ const UploadCV = () => {
         }
     };
 
-    const handleFileChange = (e) => {
+    const handleFileChange = async (e) => {
         const selectedFile = e.target.files[0];
         if (selectedFile) {
             const validation = validateFile(selectedFile);
             if (!validation.valid) {
                 setErrors(prev => ({ ...prev, file: validation.message }));
                 setFile(null);
-                e.target.value = ''; // Clear file input
+                e.target.value = '';
             } else {
                 setFile(selectedFile);
                 setErrors(prev => ({ ...prev, file: '' }));
+
+                // Parse CV to extract email and name
+                setParsing(true);
+                const extracted = await parseCVFile(selectedFile);
+                setParsing(false);
+
+                if (extracted.email || extracted.name) {
+                    setFormData(prev => ({
+                        ...prev,
+                        email: extracted.email || prev.email,
+                        name: extracted.name || prev.name
+                    }));
+
+                    // Save to localStorage for persistence
+                    const dataToSave = {
+                        name: extracted.name || formData.name,
+                        email: extracted.email || formData.email
+                    };
+                    localStorage.setItem('cvFormData', JSON.stringify(dataToSave));
+                }
             }
         }
     };
@@ -116,14 +153,6 @@ const UploadCV = () => {
         const positionValidation = validateTextInput(formData.position, 2, 100);
         if (!positionValidation.valid) newErrors.position = positionValidation.message;
 
-        // Validate experience
-        const experienceValidation = validateTextInput(formData.experience, 1, 50);
-        if (!experienceValidation.valid) newErrors.experience = experienceValidation.message;
-
-        // Validate location
-        const locationValidation = validateTextInput(formData.location, 2, 100);
-        if (!locationValidation.valid) newErrors.location = locationValidation.message;
-
         // Validate file
         if (!file) {
             newErrors.file = 'Please select a CV/Resume file';
@@ -135,20 +164,18 @@ const UploadCV = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        
+
         // Sanitize all form data before validation
         const sanitizedFormData = {
             name: sanitizeInput(formData.name),
             email: sanitizeInput(formData.email),
             phone: sanitizeInput(formData.phone),
-            position: sanitizeInput(formData.position),
-            experience: sanitizeInput(formData.experience),
-            location: sanitizeInput(formData.location)
+            position: sanitizeInput(formData.position)
         };
-        
+
         // Update form data with sanitized values
         setFormData(sanitizedFormData);
-        
+
         if (!validateForm()) {
             return;
         }
@@ -164,8 +191,6 @@ const UploadCV = () => {
             uploadData.append('email', sanitizedFormData.email);
             uploadData.append('phone', sanitizedFormData.phone);
             uploadData.append('position', sanitizedFormData.position);
-            uploadData.append('experience', sanitizedFormData.experience);
-            uploadData.append('location', sanitizedFormData.location);
 
             // Upload to Express server endpoint
             const apiUrl = getApiUrl();
@@ -188,7 +213,14 @@ const UploadCV = () => {
 
             if (response.ok && result.success) {
                 setSuccess(true);
-                setFormData({ name: '', email: '', phone: '', position: '', experience: '', location: '' });
+
+                // Save name and email to localStorage for next time
+                localStorage.setItem('cvFormData', JSON.stringify({
+                    name: sanitizedFormData.name,
+                    email: sanitizedFormData.email
+                }));
+
+                setFormData({ name: sanitizedFormData.name, email: sanitizedFormData.email, phone: '', position: '' });
                 setFile(null);
                 const fileInput = document.getElementById('cv-file-input');
                 if (fileInput) fileInput.value = '';
@@ -245,6 +277,21 @@ const UploadCV = () => {
                     )}
 
                     <form onSubmit={handleSubmit} className="cv-upload-form">
+                        <div className="form-group file-upload-group">
+                            <label htmlFor="cv-file-input">Upload Resume/CV <span className="required">*</span></label>
+                            <input
+                                type="file"
+                                id="cv-file-input"
+                                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                onChange={handleFileChange}
+                                required
+                                disabled={loading}
+                            />
+                            <p className="file-hint">Accepted formats: PDF, DOC, DOCX (Max 5MB)</p>
+                            {file && <p className="file-selected">✓ Selected: {file.name}</p>}
+                            {errors.file && <span className="error-text">{errors.file}</span>}
+                        </div>
+
                         <div className="form-row">
                             <div className="form-group">
                                 <label htmlFor="name">Full Name <span className="required">*</span></label>
@@ -313,55 +360,6 @@ const UploadCV = () => {
                             </div>
                         </div>
 
-                        <div className="form-row">
-                            <div className="form-group">
-                                <label htmlFor="experience">Years of Experience <span className="required">*</span></label>
-                                <input
-                                    id="experience"
-                                    type="text"
-                                    name="experience"
-                                    value={formData.experience}
-                                    onChange={handleInputChange}
-                                    placeholder="e.g., 5 years"
-                                    required
-                                    maxLength="50"
-                                    disabled={loading}
-                                />
-                                {errors.experience && <span className="error-text">{errors.experience}</span>}
-                            </div>
-
-                            <div className="form-group">
-                                <label htmlFor="location">Current Location <span className="required">*</span></label>
-                                <input
-                                    id="location"
-                                    type="text"
-                                    name="location"
-                                    value={formData.location}
-                                    onChange={handleInputChange}
-                                    placeholder="e.g., Chennai, India"
-                                    required
-                                    maxLength="100"
-                                    disabled={loading}
-                                />
-                                {errors.location && <span className="error-text">{errors.location}</span>}
-                            </div>
-                        </div>
-
-                        <div className="form-group file-upload-group">
-                            <label htmlFor="cv-file-input">Upload Resume/CV <span className="required">*</span></label>
-                            <input
-                                type="file"
-                                id="cv-file-input"
-                                accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                                onChange={handleFileChange}
-                                required
-                                disabled={loading}
-                            />
-                            <p className="file-hint">Accepted formats: PDF, DOC, DOCX (Max 5MB)</p>
-                            {file && <p className="file-selected">✓ Selected: {file.name}</p>}
-                            {errors.file && <span className="error-text">{errors.file}</span>}
-                        </div>
-
                         <button type="submit" className="submit-button" disabled={loading}>
                             {loading ? 'Uploading...' : '📤 Submit Application'}
                         </button>
@@ -400,8 +398,6 @@ const UploadCV = () => {
                                     <li>Your full name</li>
                                     <li>Contact number</li>
                                     <li>Position you're applying for</li>
-                                    <li>Years of experience</li>
-                                    <li>Current location</li>
                                 </ul>
                             </div>
                         </div>

@@ -103,15 +103,7 @@ const uploadValidation = [
   body('position')
     .trim()
     .notEmpty().withMessage('Position is required')
-    .isLength({ max: 100 }).withMessage('Position too long'),
-  body('experience')
-    .trim()
-    .notEmpty().withMessage('Experience is required')
-    .isLength({ max: 50 }).withMessage('Experience too long'),
-  body('location')
-    .trim()
-    .notEmpty().withMessage('Location is required')
-    .isLength({ max: 100 }).withMessage('Location too long')
+    .isLength({ max: 100 }).withMessage('Position too long')
 ];
 
 // POST /api/upload/cv
@@ -171,9 +163,7 @@ router.post('/cv', (req, res, next) => {
         name: req.body.name,
         email: req.body.email,
         phone: req.body.phone,
-        position: req.body.position,
-        experience: req.body.experience,
-        location: req.body.location
+        position: req.body.position
       }
     };
 
