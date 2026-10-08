@@ -15,8 +15,8 @@ const AdminDashboard = () => {
         cvUploadEnabled: true
     });
     const [contactInfo, setContactInfo] = useState({
-        email: '',
-        mobile: ''
+        emails: [],
+        mobiles: []
     });
 
     useEffect(() => {
@@ -76,8 +76,8 @@ const AdminDashboard = () => {
                 setContactInfo(JSON.parse(savedContactInfo));
             } else {
                 setContactInfo({
-                    email: 'madhu@kushiconsultancy.com',
-                    mobile: '+91 96770 54461'
+                    emails: ['madhu@kushiconsultancy.com'],
+                    mobiles: ['+91 96770 54461']
                 });
             }
         };
@@ -959,35 +959,91 @@ const AdminDashboard = () => {
 
             <div className="settings-section">
                 <div className="setting-card">
-                    <h3>📞 Contact Information</h3>
-                    <div className="form-group">
-                        <label htmlFor="contact-email">Email Address:</label>
-                        <input
-                            id="contact-email"
-                            type="email"
-                            value={contactInfo.email || ''}
-                            onChange={(e) => setContactInfo({ ...contactInfo, email: e.target.value })}
-                            className="form-input"
-                        />
-                    </div>
-                    <div className="form-group">
-                        <label htmlFor="contact-mobile">Mobile Number:</label>
-                        <input
-                            id="contact-mobile"
-                            type="tel"
-                            value={contactInfo.mobile || ''}
-                            onChange={(e) => setContactInfo({ ...contactInfo, mobile: e.target.value })}
-                            className="form-input"
-                        />
-                    </div>
+                    <h3>📧 Email Addresses</h3>
+                    <p style={{ color: '#666', marginBottom: '1rem' }}>Manage multiple email addresses to display on your website</p>
+                    {contactInfo.emails?.map((email, index) => (
+                        <div key={index} className="list-item-editor">
+                            <input
+                                type="email"
+                                value={email || ''}
+                                onChange={(e) => {
+                                    const updated = [...contactInfo.emails];
+                                    updated[index] = e.target.value;
+                                    setContactInfo({ ...contactInfo, emails: updated });
+                                }}
+                                className="form-input"
+                                placeholder="Enter email address"
+                            />
+                            <button
+                                onClick={() => {
+                                    const updated = contactInfo.emails.filter((_, i) => i !== index);
+                                    setContactInfo({ ...contactInfo, emails: updated });
+                                }}
+                                className="btn-remove"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    ))}
+                    <button
+                        onClick={() => {
+                            const updated = [...(contactInfo.emails || []), ''];
+                            setContactInfo({ ...contactInfo, emails: updated });
+                        }}
+                        className="btn-add-item"
+                    >
+                        + Add Email Address
+                    </button>
+                </div>
+
+                <div className="setting-card">
+                    <h3>📱 Mobile Numbers</h3>
+                    <p style={{ color: '#666', marginBottom: '1rem' }}>Manage multiple phone numbers to display on your website</p>
+                    {contactInfo.mobiles?.map((mobile, index) => (
+                        <div key={index} className="list-item-editor">
+                            <input
+                                type="tel"
+                                value={mobile || ''}
+                                onChange={(e) => {
+                                    const updated = [...contactInfo.mobiles];
+                                    updated[index] = e.target.value;
+                                    setContactInfo({ ...contactInfo, mobiles: updated });
+                                }}
+                                className="form-input"
+                                placeholder="Enter phone number"
+                            />
+                            <button
+                                onClick={() => {
+                                    const updated = contactInfo.mobiles.filter((_, i) => i !== index);
+                                    setContactInfo({ ...contactInfo, mobiles: updated });
+                                }}
+                                className="btn-remove"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    ))}
+                    <button
+                        onClick={() => {
+                            const updated = [...(contactInfo.mobiles || []), ''];
+                            setContactInfo({ ...contactInfo, mobiles: updated });
+                        }}
+                        className="btn-add-item"
+                    >
+                        + Add Phone Number
+                    </button>
+                </div>
+
+                <div className="setting-card">
                     <button
                         onClick={() => {
                             localStorage.setItem('contactInfo', JSON.stringify(contactInfo));
-                            alert('Contact information saved! The footer will update immediately.');
+                            alert('Contact information saved! The website will update immediately.');
                         }}
                         className="btn-save"
+                        style={{ width: '100%' }}
                     >
-                        💾 Save Contact Info
+                        💾 Save All Contact Information
                     </button>
                 </div>
             </div>

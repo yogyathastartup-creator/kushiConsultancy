@@ -1,26 +1,20 @@
-import { useState, useEffect } from 'react';
+import useContactInfo from '../hooks/useContactInfo';
 import '../styles/Footer.css';
 
 const Footer = () => {
-    const [contactInfo, setContactInfo] = useState({
-        email: import.meta.env.VITE_CONTACT_EMAIL || 'madhu@kushiconsultancy.com',
-        mobile: '+91 96770 54461'
-    });
-
-    useEffect(() => {
-        const savedContactInfo = localStorage.getItem('contactInfo');
-        if (savedContactInfo) {
-            setContactInfo(JSON.parse(savedContactInfo));
-        }
-    }, []);
+    const contactInfo = useContactInfo();
 
     return (
         <footer className="footer">
             <div className="footer-content">
                 <div className="footer-section">
                     <h3>Contact Us</h3>
-                    <p>📧 Email: {contactInfo.email}</p>
-                    <p>📱 Mobile: {contactInfo.mobile}</p>
+                    {contactInfo.emails?.map((email, index) => (
+                        email && <p key={`email-${index}`}>📧 Email: <a href={`mailto:${email}`}>{email}</a></p>
+                    ))}
+                    {contactInfo.mobiles?.map((mobile, index) => (
+                        mobile && <p key={`mobile-${index}`}>📱 Mobile: <a href={`tel:${mobile}`}>{mobile}</a></p>
+                    ))}
                 </div>
                 <div className="footer-section">
                     <h3>Address</h3>

@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { getApiUrl, logApiResolution } from '../utils/api';
 import { useLocation } from 'react-router-dom';
 import { validateFile, validateEmail, validatePhone, validateTextInput, sanitizeInput } from '../utils/validation';
+import useContactInfo from '../hooks/useContactInfo';
 import '../styles/UploadCV.css';
 
 /* global URLSearchParams, FormData, fetch */
 
 const UploadCV = () => {
-    const contactEmail = import.meta.env.VITE_CONTACT_EMAIL || 'yogyatha.startup@gmail.com';
+    const contactData = useContactInfo();
+    const contactEmail = contactData.emails?.[0] || import.meta.env.VITE_CONTACT_EMAIL || 'yogyatha.startup@gmail.com';
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -428,21 +430,39 @@ const UploadCV = () => {
                         </div>
                     </div>
 
-                    <div className="contact-method">
-                        <span className="icon">📱</span>
-                        <div>
-                            <strong>WhatsApp</strong>
-                            <a href="https://wa.me/919361970260" target="_blank" rel="noopener noreferrer">+91 93619 70260</a>
-                        </div>
-                    </div>
+                    {contactData.mobiles && contactData.mobiles.length > 0 && (
+                        <>
+                            <div className="contact-method">
+                                <span className="icon">📱</span>
+                                <div>
+                                    <strong>WhatsApp</strong>
+                                    {contactData.mobiles.map((mobile, idx) => {
+                                        const phoneNumber = mobile.replace(/\s+/g, '').replace(/^\+/, '');
+                                        return (
+                                            <div key={idx}>
+                                                <a href={`https://wa.me/${phoneNumber}`} target="_blank" rel="noopener noreferrer">{mobile}</a>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            </div>
 
-                    <div className="contact-method">
-                        <span className="icon">📞</span>
-                        <div>
-                            <strong>Phone</strong>
-                            <a href="tel:+919361970260">+91 93619 70260</a> / <a href="tel:+919677054461">+91 96770 54461</a>
-                        </div>
-                    </div>
+                            <div className="contact-method">
+                                <span className="icon">📞</span>
+                                <div>
+                                    <strong>Phone</strong>
+                                    <div>
+                                        {contactData.mobiles.map((mobile, idx) => (
+                                            <span key={idx}>
+                                                <a href={`tel:${mobile.replace(/\s+/g, '')}`}>{mobile}</a>
+                                                {idx < contactData.mobiles.length - 1 && ' / '}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
 

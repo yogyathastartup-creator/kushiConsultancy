@@ -29,6 +29,16 @@
     line-height: 1.6;
 }
 
+.footer-section p a {
+    color: #fff;
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.footer-section p a:hover {
+    color: #0073b1;
+}
+
 .social-media a {
     color: #fff;
     text-decoration: none;

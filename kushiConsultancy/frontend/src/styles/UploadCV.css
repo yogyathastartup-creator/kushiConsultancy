@@ -312,7 +312,7 @@
 .form-group textarea {
     padding: 0.75rem;
     border: 2px solid #ddd;
-    border-radius: 8px;
+    border-radius: 0;
     font-size: 1rem;
     transition: border-color 0.3s ease;
 }
@@ -341,6 +341,7 @@
 .file-upload-group input[type="file"] {
     padding: 0.5rem;
     cursor: pointer;
+    border-radius: 0;
 }
 
 .file-hint {
