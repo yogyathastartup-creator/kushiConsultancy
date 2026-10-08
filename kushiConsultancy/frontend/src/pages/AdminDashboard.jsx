@@ -14,6 +14,10 @@ const AdminDashboard = () => {
     const [settings, setSettings] = useState({
         cvUploadEnabled: true
     });
+    const [contactInfo, setContactInfo] = useState({
+        email: '',
+        mobile: ''
+    });
 
     useEffect(() => {
         const loadAllContent = () => {
@@ -64,6 +68,17 @@ const AdminDashboard = () => {
             const savedSettings = localStorage.getItem('siteSettings');
             if (savedSettings) {
                 setSettings(JSON.parse(savedSettings));
+            }
+
+            // Load contact info
+            const savedContactInfo = localStorage.getItem('contactInfo');
+            if (savedContactInfo) {
+                setContactInfo(JSON.parse(savedContactInfo));
+            } else {
+                setContactInfo({
+                    email: 'madhu@kushiconsultancy.com',
+                    mobile: '+91 96770 54461'
+                });
             }
         };
 
@@ -941,7 +956,42 @@ const AdminDashboard = () => {
     const renderSettingsTab = () => (
         <div className="admin-section">
             <h2>⚙️ Site Settings</h2>
-            
+
+            <div className="settings-section">
+                <div className="setting-card">
+                    <h3>📞 Contact Information</h3>
+                    <div className="form-group">
+                        <label htmlFor="contact-email">Email Address:</label>
+                        <input
+                            id="contact-email"
+                            type="email"
+                            value={contactInfo.email || ''}
+                            onChange={(e) => setContactInfo({ ...contactInfo, email: e.target.value })}
+                            className="form-input"
+                        />
+                    </div>
+                    <div className="form-group">
+                        <label htmlFor="contact-mobile">Mobile Number:</label>
+                        <input
+                            id="contact-mobile"
+                            type="tel"
+                            value={contactInfo.mobile || ''}
+                            onChange={(e) => setContactInfo({ ...contactInfo, mobile: e.target.value })}
+                            className="form-input"
+                        />
+                    </div>
+                    <button
+                        onClick={() => {
+                            localStorage.setItem('contactInfo', JSON.stringify(contactInfo));
+                            alert('Contact information saved! The footer will update immediately.');
+                        }}
+                        className="btn-save"
+                    >
+                        💾 Save Contact Info
+                    </button>
+                </div>
+            </div>
+
             <div className="settings-section">
                 <div className="setting-card">
                     <div className="setting-header">
