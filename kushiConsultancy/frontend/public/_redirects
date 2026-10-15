@@ -1,1 +1,3 @@
-/*    /index.html   200
+# Prerendered pages are served as static files first. Admin and unknown paths get the empty app shell.
+/admin/*  /app-shell.html  200
+/*  /app-shell.html  200

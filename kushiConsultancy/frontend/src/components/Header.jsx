@@ -8,7 +8,7 @@ const Header = () => {
             <div className="logo">
                 <Link to="/">
                     <img src="/khushinobg.svg" alt="Kushi Consultancy Logo" />
-                    <h1>Kushi Civil and Structural Consultancy</h1>
+                    <span className="brand-name">Kushi Civil and Structural Consultancy</span>
                 </Link>
             </div>
         </header>

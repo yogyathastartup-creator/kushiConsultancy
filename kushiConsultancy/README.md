@@ -72,6 +72,24 @@ The server no longer uses MongoDB for admin credentials. Ensure all credentials 
 
 - `VITE_API_URL`: Base URL for API endpoints.
 
+## SEO
+
+- **Prerendered pages.** `npm run build` (in `frontend/`) renders each public route to static HTML (`scripts/prerender.mjs`), so crawlers get the real content. Admin and unknown paths get an empty app shell (`app-shell.html`).
+- **Head tags.** Each page gets its own title, description, keywords, canonical, Open Graph/Twitter tags and JSON-LD (`frontend/src/seo/`). Page list and defaults live in `frontend/src/seo/siteConfig.js`.
+- **robots.txt and sitemap.xml** are generated on every build from the same page list and the admin SEO settings.
+- **Admin → SEO tab** saves to `PUT /api/seo` (admin login required). Settings are stored in `backend/data/seo-settings.json` (or `SEO_SETTINGS_PATH`) and take effect on the next deploy.
+
+Netlify build variables:
+
+| Variable | Purpose |
+| --- | --- |
+| `SEO_API_URL` | Backend endpoint, e.g. `https://api.kushiconsultancy.com/api/seo`. If set and unreachable, the build fails so an unpublished change can't go live silently. |
+| `SITE_URL` | Canonical origin, default `https://kushiconsultancy.com` |
+
+After the first deploy, submit `https://kushiconsultancy.com/sitemap.xml` in Google Search Console and Bing Webmaster Tools, then paste the verification codes into the admin SEO tab and redeploy.
+
+Note: on Render's free tier the filesystem is ephemeral, so point `SEO_SETTINGS_PATH` at a persistent disk or the saved SEO settings will reset on restart.
+
 ## Deployment
 
 1. Deploy the project to Vercel:

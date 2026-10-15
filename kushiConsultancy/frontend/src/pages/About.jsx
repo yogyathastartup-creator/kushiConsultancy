@@ -51,7 +51,7 @@ const About = () => {
 
     return (
         <div className="about-page">
-            <h2>{content.intro.title}</h2>
+            <h1>{content.intro.title}</h1>
             <p className="tagline">
                 <strong>{content.intro.tagline}</strong>
             </p>

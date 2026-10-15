@@ -4,7 +4,7 @@ import '../styles/ServicesPage.css';
 const defaultContent = {
     intro: {
         title: 'Our Services',
-        description: 'Kushi Consultancy delivers comprehensive recruitment and staffing solutions for the engineering and construction industries.'
+        description: 'Kushi Consultancy delivers comprehensive recruitment and staffing solutions for the engineering and construction industries, including structural engineer hiring for onshore and offshore EPC/EPCM projects in India and abroad.'
     },
     services: [
         {
@@ -75,7 +75,7 @@ const ServicesPage = () => {
 
     return (
         <div className="services-page">
-            <h2>{content.intro.title}</h2>
+            <h1>{content.intro.title}</h1>
             <p className="services-intro">{content.intro.description}</p>
             
             <div className="services-list">

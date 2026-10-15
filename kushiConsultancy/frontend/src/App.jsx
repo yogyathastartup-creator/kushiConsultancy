@@ -4,6 +4,7 @@ import Header from './components/Header';
 import Navigation from './components/Navigation';
 import Banner from './components/Banner';
 import Footer from './components/Footer';
+import useDocumentHead from './seo/useDocumentHead';
 import './styles/App.css';
 
 // Lazy load page components for code splitting
@@ -18,10 +19,10 @@ const Projects = lazy(() => import('./pages/Projects'));
 
 // Loading fallback component
 const LoadingSpinner = () => (
-  <div style={{ 
-    display: 'flex', 
-    justifyContent: 'center', 
-    alignItems: 'center', 
+  <div style={{
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
     minHeight: '400px',
     fontSize: '1.2rem',
     color: '#0073b1'
@@ -29,6 +30,45 @@ const LoadingSpinner = () => (
     Loading...
   </div>
 );
+
+// The route tree is separate from the router so the build-time prerender can wrap it in a StaticRouter.
+export const AppRoutes = () => {
+  useDocumentHead();
+
+  return (
+    <div className="App">
+      <Suspense fallback={<LoadingSpinner />}>
+        <Routes>
+          {/* Admin Routes - No Header/Footer */}
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+
+          {/* Public Routes - With Header/Footer */}
+          <Route path="/*" element={
+            <>
+              <Header />
+              <Navigation />
+              <Banner />
+              <main className="main-content">
+                <Suspense fallback={<LoadingSpinner />}>
+                  <Routes>
+                    <Route path="/" element={<Home />} />
+                    <Route path="/about" element={<About />} />
+                    <Route path="/services" element={<ServicesPage />} />
+                    <Route path="/recruitment" element={<RecruitmentPage />} />
+                    <Route path="/upload-cv" element={<UploadCV />} />
+                    <Route path="/projects" element={<Projects />} />
+                  </Routes>
+                </Suspense>
+              </main>
+              <Footer />
+            </>
+          } />
+        </Routes>
+      </Suspense>
+    </div>
+  );
+};
 
 const App = () => {
   return (
@@ -38,37 +78,7 @@ const App = () => {
         v7_relativeSplatPath: true
       }}
     >
-      <div className="App">
-        <Suspense fallback={<LoadingSpinner />}>
-          <Routes>
-            {/* Admin Routes - No Header/Footer */}
-            <Route path="/admin/login" element={<AdminLogin />} />
-            <Route path="/admin/dashboard" element={<AdminDashboard />} />
-            
-            {/* Public Routes - With Header/Footer */}
-            <Route path="/*" element={
-              <>
-                <Header />
-                <Navigation />
-                <Banner />
-                <main className="main-content">
-                  <Suspense fallback={<LoadingSpinner />}>
-                    <Routes>
-                      <Route path="/" element={<Home />} />
-                      <Route path="/about" element={<About />} />
-                      <Route path="/services" element={<ServicesPage />} />
-                      <Route path="/recruitment" element={<RecruitmentPage />} />
-                      <Route path="/upload-cv" element={<UploadCV />} />
-                      <Route path="/projects" element={<Projects />} />
-                    </Routes>
-                  </Suspense>
-                </main>
-                <Footer />
-              </>
-            } />
-          </Routes>
-        </Suspense>
-      </div>
+      <AppRoutes />
     </Router>
   );
 };

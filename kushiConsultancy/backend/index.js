@@ -13,6 +13,7 @@ import authRoutes from './routes/auth.js';
 import uploadRoutes from './routes/upload.js';
 import emailRoutes from './routes/email.js';
 import versionRoutes from './routes/version.js';
+import seoRoutes from './routes/seo.js';
 
 dotenv.config();
 
@@ -145,6 +146,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/email', emailRoutes);
 app.use('/api/version', versionRoutes);
+app.use('/api/seo', seoRoutes);
 
 // Unified health endpoint under /api as in Java backend
 app.get('/api/health', (req, res) => {

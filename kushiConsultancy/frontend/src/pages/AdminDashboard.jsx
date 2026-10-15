@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { getApiUrl, logApiResolution } from '../utils/api';
 import { useNavigate } from 'react-router-dom';
 import '../styles/AdminDashboard.css';
+import SeoSettingsPanel from '../components/admin/SeoSettingsPanel';
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
@@ -1151,12 +1152,19 @@ const AdminDashboard = () => {
                 >
                     Settings
                 </button>
+                <button 
+                    className={activeTab === 'seo' ? 'tab active' : 'tab'}
+                    onClick={() => setActiveTab('seo')}
+                >
+                    SEO
+                </button>
             </div>
 
             <div className="admin-content">
                 {activeTab === 'recruitment' && renderRecruitmentTab()}
                 {activeTab === 'content' && renderContentEditor()}
                 {activeTab === 'settings' && renderSettingsTab()}
+                {activeTab === 'seo' && <SeoSettingsPanel />}
             </div>
         </div>
     );

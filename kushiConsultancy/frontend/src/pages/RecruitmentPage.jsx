@@ -116,9 +116,9 @@ const RecruitmentPage = () => {
 
     return (
         <div className="recruitment-page">
-            <h2>Current Openings</h2>
+            <h1>Current Openings</h1>
             <p className="recruitment-intro">
-                We recruit top engineering talent across multiple disciplines for leading EPC/EPCM companies worldwide.
+                We recruit structural engineers and other engineering talent across multiple disciplines for onshore and offshore EPC/EPCM projects worldwide. Browse current openings below and apply with your CV.
             </p>
 
             <div className="recruitment-grid">

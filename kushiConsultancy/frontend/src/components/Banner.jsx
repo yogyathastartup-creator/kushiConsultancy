@@ -3,7 +3,7 @@ import '../styles/Banner.css';
 
 const bannerContent = [
     // Image served from /public; ensure filename matches exactly
-    { type: 'image', src: '/constructionimg.jpg', alt: 'Project Image' },
+    { type: 'image', src: '/constructionimg.jpg', alt: 'Structural engineering and construction project by Kushi Consultancy' },
     { type: 'text', content: 'Kushi Civil and Structural Consultancy: Your Partner in Engineering Excellence.' },
     {type:'text',content:'We design, we build, we deliver.'},
     {type:'text',content:'Construction and Structural Engineering is our passion.'},

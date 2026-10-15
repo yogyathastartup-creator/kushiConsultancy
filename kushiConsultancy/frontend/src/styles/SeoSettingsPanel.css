@@ -1,0 +1,77 @@
+/* Admin SEO panel. Form controls reuse the classes from AdminDashboard.css. */
+
+.seo-panel .seo-help {
+    color: #666;
+    font-size: 0.9rem;
+    margin: 0 0 1rem;
+}
+
+.seo-panel .seo-info ul {
+    margin: 0.5rem 0 0;
+    padding-left: 1.25rem;
+    color: #444;
+}
+
+.seo-panel .seo-info code {
+    word-break: break-all;
+}
+
+.seo-status {
+    padding: 0.75rem 1rem;
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    font-size: 0.95rem;
+}
+
+.seo-status-success {
+    background: #e7f5ea;
+    color: #1d6b32;
+    border: 1px solid #b9e0c3;
+}
+
+.seo-status-error {
+    background: #fdecec;
+    color: #9b1c1c;
+    border: 1px solid #f3b8b8;
+}
+
+.seo-counter {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.8rem;
+    color: #777;
+}
+
+.seo-counter-warn {
+    color: #b25e00;
+}
+
+.seo-page-card {
+    border: 1px solid #e3e3e3;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background: #fff;
+}
+
+.seo-page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+}
+
+.seo-checkbox {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.9rem;
+    color: #444;
+}
+
+.seo-panel .btn-save:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}

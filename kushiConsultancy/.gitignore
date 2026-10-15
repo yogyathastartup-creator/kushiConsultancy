@@ -56,3 +56,9 @@ backend/logs/
 cookies.txt
 replacements.txt
 *.cookies.txt
+
+# Build-time SSR bundle used by scripts/prerender.mjs
+/.ssr-build
+
+# Admin-editable SEO settings (SEO_SETTINGS_PATH overrides this location)
+/data/

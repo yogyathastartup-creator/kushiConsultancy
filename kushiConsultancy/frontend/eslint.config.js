@@ -5,9 +5,21 @@ import reactRefresh from 'eslint-plugin-react-refresh';
 
 export default [
   {
-    ignores: ['dist', 'node_modules', 'build', '.vercel']
+    ignores: ['dist', '.ssr-build', 'node_modules', 'build', '.vercel']
   },
   js.configs.recommended,
+  {
+    // Build scripts run in Node
+    files: ['scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        process: 'readonly',
+        console: 'readonly',
+        fetch: 'readonly',
+        AbortSignal: 'readonly'
+      }
+    }
+  },
   {
     files: ['**/*.{js,jsx}'],
     languageOptions: {

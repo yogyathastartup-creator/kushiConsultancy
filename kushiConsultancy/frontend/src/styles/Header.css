@@ -19,7 +19,7 @@
     margin-right: 0.5rem;
 }
 
-.header .logo h1 {
+.header .logo .brand-name {
     font-size: 1.5rem;
     color: #0073b1;
     font-weight: 700;
@@ -31,7 +31,7 @@
         padding: 0 1rem;
     }
     
-    .header .logo h1 {
+    .header .logo .brand-name {
         font-size: 1.2rem;
     }
 }
