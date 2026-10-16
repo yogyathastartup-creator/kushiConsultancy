@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Clients from '../components/Clients';
 import '../styles/Home.css';
+import { defaultRecruitmentData } from '../data/recruitmentDefaults';
 
 const defaultContent = {
     hero: {
@@ -40,7 +41,8 @@ const defaultContent = {
 
 const Home = () => {
     const [content, setContent] = useState(defaultContent);
-    const [recruitmentData, setRecruitmentData] = useState({});
+    // Start with the default openings so the section isn't empty on a first visit (and in prerendered HTML).
+    const [recruitmentData, setRecruitmentData] = useState(defaultRecruitmentData);
 
     useEffect(() => {
         const saved = localStorage.getItem('homeContent');
@@ -50,7 +52,10 @@ const Home = () => {
         
         const recruitmentSaved = localStorage.getItem('recruitmentData');
         if (recruitmentSaved) {
-            setRecruitmentData(JSON.parse(recruitmentSaved));
+            const parsed = JSON.parse(recruitmentSaved);
+            if (parsed && Object.keys(parsed).length > 0) {
+                setRecruitmentData(parsed);
+            }
         }
 
         // Scroll animations
